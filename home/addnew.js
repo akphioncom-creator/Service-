@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, Image, Scro
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const STORAGE_KEY = 'family_cards_data';
+const STORAGE_KEY = 'smart_cards_data';
 
 export default function AddNewScreen({ onBack }) {
   const [image, setImage] = useState(null);
@@ -29,7 +29,7 @@ export default function AddNewScreen({ onBack }) {
     }
   };
 
-  // ডেটা সেভ এবং ফ্যামিলি কার্ড তৈরির ফাংশন (AsyncStorage ব্যবহার করে)
+  // ডেটা সেভ এবং কার্ড তৈরির ফাংশন
   const handleSave = async () => {
     if (!name.trim() || !nid.trim() || !phone.trim() || !village.trim() || !upazila.trim() || !district.trim()) {
       Alert.alert('সতর্কতা', 'দয়া করে সবগুলো ঘর সঠিকভাবে পূরণ করুন!');
@@ -60,9 +60,9 @@ export default function AddNewScreen({ onBack }) {
       list.unshift(newItem);
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(list));
 
-      // ফ্যামিলি কার্ড প্রিভিউ সেট করা
+      // কার্ড প্রিভিউ সেট করা
       setGeneratedCard(newItem);
-      Alert.alert('সফল', 'ফ্যামিলি কার্ড সফলভাবে তৈরি এবং সংরক্ষিত হয়েছে!');
+      Alert.alert('সফল', 'স্মার্ট কার্ড সফলভাবে তৈরি এবং সংরক্ষিত হয়েছে!');
     } catch (error) {
       Alert.alert('ত্রুটি', 'ডেটা সংরক্ষণ করতে সমস্যা হয়েছে।');
     }
@@ -70,7 +70,7 @@ export default function AddNewScreen({ onBack }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Smart Family Card Register</Text>
+      <Text style={styles.title}>Smart Card Register</Text>
 
       {/* ১. ফটো আপলোড অপশন (সবার উপরে) */}
       <View style={styles.imageContainer}>
@@ -83,59 +83,83 @@ export default function AddNewScreen({ onBack }) {
         </TouchableOpacity>
       </View>
 
-      {/* ২. ইনপুট ফিল্ডসমূহ */}
-      <TextInput
-        style={styles.input}
-        placeholder="Name (নাম)..."
-        value={name}
-        onChangeText={setName}
-      />
+      {/* ২. ইনপুট ফিল্ডসমূহ (প্লেসহোল্ডারসহ স্পষ্ট করা হয়েছে) */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Name (নাম):</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="ব্যক্তির নাম লিখুন..."
+          placeholderTextColor="#999"
+          value={name}
+          onChangeText={setName}
+        />
+      </View>
 
-      <TextInput
-        style={styles.input}
-        placeholder="NID Card No. (এনআইডি নম্বর)..."
-        value={nid}
-        onChangeText={setNid}
-        keyboardType="numeric"
-      />
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>NID Card No. (এনআইডি নম্বর):</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="এনআইডি কার্ড নম্বর লিখুন..."
+          placeholderTextColor="#999"
+          value={nid}
+          onChangeText={setNid}
+          keyboardType="numeric"
+        />
+      </View>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Phone Number (ফোন নম্বর)..."
-        value={phone}
-        onChangeText={setPhone}
-        keyboardType="phone-pad"
-      />
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Phone Number (ফোন নম্বর):</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="ফোন নম্বর লিখুন..."
+          placeholderTextColor="#999"
+          value={phone}
+          onChangeText={setPhone}
+          keyboardType="phone-pad"
+        />
+      </View>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Village (গ্রাম)..."
-        value={village}
-        onChangeText={setVillage}
-      />
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Village (গ্রাম):</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="গ্রামের নাম লিখুন..."
+          placeholderTextColor="#999"
+          value={village}
+          onChangeText={setVillage}
+        />
+      </View>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Upazila (উপজেলা)..."
-        value={upazila}
-        onChangeText={setUpazila}
-      />
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Upazila (উপজেলা):</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="উপজেলার নাম লিখুন..."
+          placeholderTextColor="#999"
+          value={upazila}
+          onChangeText={setUpazila}
+        />
+      </View>
 
-      <TextInput
-        style={styles.input}
-        placeholder="District (জেলা)..."
-        value={district}
-        onChangeText={setDistrict}
-      />
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>District (জেলা):</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="জেলার নাম লিখুন..."
+          placeholderTextColor="#999"
+          value={district}
+          onChangeText={setDistrict}
+        />
+      </View>
 
       <TouchableOpacity style={styles.btn} onPress={handleSave}>
-        <Text style={styles.btnText}>ফ্যামিলি কার্ড তৈরি করুন</Text>
+        <Text style={styles.btnText}>কার্ড তৈরি করুন</Text>
       </TouchableOpacity>
 
-      {/* ৩. ফ্যামিলি কার্ড প্রিভিউ সেকশন */}
+      {/* ৩. কার্ড প্রিভিউ সেকশন */}
       {generatedCard && (
         <View style={styles.cardPreviewBox}>
-          <Text style={styles.cardTitle}>🌟 Smart Family Card 🌟</Text>
+          <Text style={styles.cardTitle}>🌟 Smart Card Preview 🌟</Text>
           {generatedCard.image && <Image source={{ uri: generatedCard.image }} style={styles.cardImage} />}
           <Text style={styles.cardText}>নাম: {generatedCard.name}</Text>
           <Text style={styles.cardText}>এনআইডি: {generatedCard.nid}</Text>
@@ -159,11 +183,13 @@ const styles = StyleSheet.create({
   imagePickerBtn: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#e9ecef', borderWidth: 2, borderColor: '#007bff', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   previewImage: { width: '100%', height: '100%' },
   imagePickerText: { fontSize: 12, textAlign: 'center', color: '#007bff', fontWeight: 'bold' },
-  input: { height: 48, borderWidth: 1, borderColor: '#ced4da', borderRadius: 8, paddingHorizontal: 15, backgroundColor: '#fff', fontSize: 16, marginBottom: 15 },
-  btn: { backgroundColor: '#28a745', paddingVertical: 12, borderRadius: 8, alignItems: 'center', marginBottom: 10 },
+  inputGroup: { marginBottom: 12 },
+  label: { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 5 },
+  input: { height: 48, borderWidth: 1, borderColor: '#ced4da', borderRadius: 8, paddingHorizontal: 15, backgroundColor: '#fff', fontSize: 16, color: '#000' },
+  btn: { backgroundColor: '#28a745', paddingVertical: 12, borderRadius: 8, alignItems: 'center', marginTop: 10, marginBottom: 10 },
   backBtn: { backgroundColor: '#6c757d', marginBottom: 30 },
   btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  cardPreviewBox: { backgroundColor: '#ffffff', borderWidth: 2, borderColor: '#007bff', borderRadius: 12, padding: 20, alignItems: 'center', marginBottom: 15, elevation: 5 },
+  cardPreviewBox: { backgroundColor: '#ffffff', borderWidth: 2, borderColor: '#007bff', borderRadius: 12, padding: 20, alignItems: 'center', marginTop: 15, marginBottom: 15, elevation: 5 },
   cardTitle: { fontSize: 18, fontWeight: 'bold', color: '#007bff', marginBottom: 12 },
   cardImage: { width: 80, height: 80, borderRadius: 40, marginBottom: 12, borderWidth: 1, borderColor: '#ddd' },
   cardText: { fontSize: 14, color: '#333', marginBottom: 5, textAlign: 'center' }
