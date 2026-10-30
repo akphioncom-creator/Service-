@@ -38,16 +38,9 @@ expoAutolinking.useExpoVersionCatalog()
 include ':app'
 includeBuild(expoAutolinking.reactNativeGradlePlugin)
 
-// --- নাইট্রো মডিউল এবং অন্যান্য নেটিভ লাইব্রেরি অটো-লিংকিং ও পাথ সিঙ্ক ---
-// এটি react-native-nitro-modules এবং nitro-image এর পাথ ত্রুটি দূর করবে
-def nitroModulesPath = new File(
-    providers.exec {
-        workingDir(rootDir)
-        commandLine("node", "--print", "require.resolve('react-native-nitro-modules/package.json', { paths: [rootDir] })")
-    }.standardOutput.asText.get().trim()
-).getParentFile().absolutePath + "/android"
-
-if (file(nitroModulesPath).exists()) {
+// --- নিরাপদ উপায়ে Nitro Modules চেক এবং ইনক্লুড ---
+def nitroModulesDir = file("../../node_modules/react-native-nitro-modules/android")
+if (nitroModulesDir.exists()) {
     include(':react-native-nitro-modules')
-    project(':react-native-nitro-modules').projectDir = file(nitroModulesPath)
+    project(':react-native-nitro-modules').projectDir = nitroModulesDir
 }
