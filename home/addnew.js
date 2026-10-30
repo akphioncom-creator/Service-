@@ -157,7 +157,7 @@ export default function AddNewScreen({ onBack }) {
         <Text style={styles.btnText}>কার্ড তৈরি করুন</Text>
       </TouchableOpacity>
 
-      {/* ৩. প্রফেশনাল আইডি কার্ড প্রিভিউ ডিজাইন */}
+      {/* ৩. প্রফেশনাল আইডি কার্ড প্রিভিউ ডিজাইন (প্রশস্ত এবং বড় কিউআর কোড সহ) */}
       {generatedCard && (
         <View style={styles.cardContainer}>
           {/* ব্যাকগ্রাউন্ডে অফিশিয়াল সরকারি স্বচ্ছ লোগো/ওয়াটারমার্ক */}
@@ -195,9 +195,9 @@ export default function AddNewScreen({ onBack }) {
               <Text style={styles.fieldValue}>{generatedCard.createdAt}</Text>
             </View>
 
-            {/* ডান পাশ: সম্পূর্ণ অংশ জুড়ে কিউআর কোড */}
+            {/* ডান পাশ: বড় কিউআর কোড */}
             <View style={styles.cardRightSection}>
-              <QRCode value={generatedCard.nid || 'smart-card'} size={85} />
+              <QRCode value={generatedCard.nid || 'smart-card'} size={105} />
             </View>
           </View>
         </View>
@@ -211,7 +211,7 @@ export default function AddNewScreen({ onBack }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: 20, backgroundColor: '#f8f9fa', paddingTop: 40 },
+  container: { flexGrow: 1, padding: 15, backgroundColor: '#f8f9fa', paddingTop: 40 },
   mainTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 20, textAlign: 'center', color: '#1A365D' },
   imageContainer: { alignItems: 'center', marginBottom: 20 },
   imagePickerBtn: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#e9ecef', borderWidth: 2, borderColor: '#007bff', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
@@ -224,17 +224,17 @@ const styles = StyleSheet.create({
   backBtn: { backgroundColor: '#6c757d', marginBottom: 30 },
   btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   
-  /* প্রফেশনাল আইডি কার্ড প্রিভিউ স্টাইল ও ওয়াটারমার্ক */
-  cardContainer: { width: '100%', backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: '#1A365D', borderRadius: 8, padding: 10, marginTop: 15, marginBottom: 15, elevation: 4, position: 'relative', overflow: 'hidden' },
+  /* প্রফেশনাল আইডি কার্ড প্রিভিউ স্টাইল ও ওয়াটারমার্ক (প্রশস্ত সাইজ) */
+  cardContainer: { width: '100%', backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: '#1A365D', borderRadius: 10, padding: 14, marginTop: 15, marginBottom: 15, elevation: 5, position: 'relative', overflow: 'hidden' },
   watermarkContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 0 },
-  watermarkLogoText: { fontSize: 55, opacity: 0.12 },
-  watermarkSubText: { fontSize: 14, fontWeight: 'bold', color: '#006a4e', opacity: 0.1, letterSpacing: 2, marginTop: -5 },
+  watermarkLogoText: { fontSize: 65, opacity: 0.12 },
+  watermarkSubText: { fontSize: 15, fontWeight: 'bold', color: '#006a4e', opacity: 0.1, letterSpacing: 3, marginTop: -5 },
   cardBody: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 1 },
-  cardLeftSection: { width: '28%', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#eee', paddingRight: 4 },
-  cardUserImage: { width: 60, height: 75, borderRadius: 4, borderWidth: 1, borderColor: '#ccc', marginBottom: 4 },
-  cardAddressText: { fontSize: 9, color: '#333', textAlign: 'center' },
-  cardMiddleSection: { width: '38%', paddingLeft: 6, paddingRight: 6 },
-  fieldLabel: { fontSize: 8, color: '#666', marginTop: 2 },
-  fieldValue: { fontSize: 11, fontWeight: 'bold', color: '#000' },
-  cardRightSection: { width: '32%', alignItems: 'center', justifyContent: 'center', borderLeftWidth: 1, borderLeftColor: '#eee', paddingLeft: 4 }
+  cardLeftSection: { width: '27%', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#eee', paddingRight: 6 },
+  cardUserImage: { width: 68, height: 85, borderRadius: 4, borderWidth: 1, borderColor: '#ccc', marginBottom: 6 },
+  cardAddressText: { fontSize: 10, color: '#333', textAlign: 'center' },
+  cardMiddleSection: { width: '37%', paddingLeft: 8, paddingRight: 6 },
+  fieldLabel: { fontSize: 9, color: '#666', marginTop: 3 },
+  fieldValue: { fontSize: 12, fontWeight: 'bold', color: '#000' },
+  cardRightSection: { width: '36%', alignItems: 'center', justifyContent: 'center', borderLeftWidth: 1, borderLeftColor: '#eee', paddingLeft: 6 }
 });
