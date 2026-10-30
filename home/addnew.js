@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, Image, ScrollView } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { MMKV } from 'react-native-mmkv';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const storage = new MMKV();
 const STORAGE_KEY = 'family_cards_data';
 
 export default function AddNewScreen({ onBack }) {
@@ -30,15 +29,15 @@ export default function AddNewScreen({ onBack }) {
     }
   };
 
-  // ডেটা সেভ এবং ফ্যামিলি কার্ড তৈরির ফাংশন
-  const handleSave = () => {
+  // ডেটা সেভ এবং ফ্যামিলি কার্ড তৈরির ফাংশন (AsyncStorage ব্যবহার করে)
+  const handleSave = async () => {
     if (!name.trim() || !nid.trim() || !phone.trim() || !village.trim() || !upazila.trim() || !district.trim()) {
       Alert.alert('সতর্কতা', 'দয়া করে সবগুলো ঘর সঠিকভাবে পূরণ করুন!');
       return;
     }
 
     try {
-      const existingData = storage.getString(STORAGE_KEY);
+      const existingData = await AsyncStorage.getItem(STORAGE_KEY);
       let list = existingData ? JSON.parse(existingData) : [];
 
       if (list.length >= 2000) {
@@ -59,7 +58,7 @@ export default function AddNewScreen({ onBack }) {
       };
 
       list.unshift(newItem);
-      storage.set(STORAGE_KEY, JSON.stringify(list));
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(list));
 
       // ফ্যামিলি কার্ড প্রিভিউ সেট করা
       setGeneratedCard(newItem);
