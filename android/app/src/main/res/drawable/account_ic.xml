@@ -1,0 +1,17 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="512dp"
+    android:height="512dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+
+    <!-- ব্যবহারকারীর মাথা (Head) -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M 256,270 A 110,110 0 1,0 256,50 A 110,110 0 1,0 256,270 Z" />
+
+    <!-- ব্যবহারকারীর শরীর (Body) -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M 48,480 C 48,350 120,310 256,310 C 392,310 464,350 464,480 Z" />
+
+</vector>
