@@ -1,11 +1,19 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
+  <!-- মূল অ্যাপ্লিকেশনের থিম -->
   <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
     <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
     <item name="colorPrimary">@color/colorPrimary</item>
     <item name="android:statusBarColor">@android:color/transparent</item>
     <item name="android:navigationBarColor">@android:color/transparent</item>
   </style>
+
+  <!-- স্প্ল্যাশ স্ক্রিনের থিম -->
   <style name="Theme.App.SplashScreen" parent="AppTheme">
-    <item name="android:windowBackground">@drawable/splashscreen_logo</item>
+    <!-- আর্কিটেকচারাল ফিক্স: সরাসরি লোগোর বদলে লেয়ার-লিস্ট ক্যানভাস কল করা হয়েছে -->
+    <item name="android:windowBackground">@drawable/splashscreen_background</item>
+    
+    <!-- ইমারসিভ ভিউ: স্ট্যাটাস বার এবং নেভিগেশন বারকে নীল ব্যাকগ্রাউন্ডের সাথে একীভূত করা হলো -->
+    <item name="android:statusBarColor">@color/ic_launcher_background</item>
+    <item name="android:navigationBarColor">@color/ic_launcher_background</item>
   </style>
 </resources>
