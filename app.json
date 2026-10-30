@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "Smart Service",
+    "slug": "smart-service",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "smartservice",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#1A365D"
+    },
+    "android": {
+      "package": "com.smartservice.app",
+      "permissions": [
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "MANAGE_EXTERNAL_STORAGE",
+        "SYSTEM_ALERT_WINDOW",
+        "WAKE_LOCK",
+        "FOREGROUND_SERVICE",
+        "VIBRATE",
+        "com.android.launcher.permission.INSTALL_SHORTCUT"
+      ]
+    },
+    "ios": {
+      "bundleIdentifier": "com.smartservice.app"
+    },
+    "plugins": [
+      "expo-status-bar",
+      "expo-dev-client",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24
+          }
+        }
+      ],
+      "expo-font",
+      "expo-quick-actions"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": ""
+      }
+    }
+  }
+}
+
