@@ -1,0 +1,68 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+  
+  <!-- Outer Green Circle -->
+  <path
+      android:strokeColor="#006a4e"
+      android:strokeWidth="3"
+      android:fillColor="#00000000"
+      android:pathData="M100,10 A90,90 0 1,1 99.9,10 Z"/>
+
+  <!-- Inner Water Waves Representation -->
+  <path
+      android:fillColor="#006a4e"
+      android:pathData="M50,140 Q75,130 100,140 Q125,150 150,140 Q150,155 100,165 Q50,155 50,140 Z"/>
+  
+  <path
+      android:fillColor="#006a4e"
+      android:pathData="M55,148 Q75,140 100,148 Q125,156 145,148 Q145,160 100,170 Q55,160 55,148 Z"/>
+
+  <!-- Central Water Lily / Shapla Petals -->
+  <path
+      android:fillColor="#00000000"
+      android:strokeColor="#006a4e"
+      android:strokeWidth="2"
+      android:pathData="M100,60 L105,115 L100,135 L95,115 Z"/>
+  <path
+      android:fillColor="#00000000"
+      android:strokeColor="#006a4e"
+      android:strokeWidth="1.5"
+      android:pathData="M100,75 L125,95 L115,120 L100,125 Z"/>
+  <path
+      android:fillColor="#00000000"
+      android:strokeColor="#006a4e"
+      android:strokeWidth="1.5"
+      android:pathData="M100,75 L75,95 L85,120 L100,125 Z"/>
+  <path
+      android:fillColor="#00000000"
+      android:strokeColor="#006a4e"
+      android:strokeWidth="1.2"
+      android:pathData="M100,85 L145,105 L130,125 L100,130 Z"/>
+  <path
+      android:fillColor="#00000000"
+      android:strokeColor="#006a4e"
+      android:strokeWidth="1.2"
+      android:pathData="M100,85 L55,105 L70,125 L100,130 Z"/>
+
+  <!-- Paddy Sheaves (Wreath) -->
+  <path
+      android:fillColor="#006a4e"
+      android:pathData="M40,120 Q30,90 45,60 Q50,50 60,40"
+      android:strokeColor="#006a4e"
+      android:strokeWidth="2"/>
+  <path
+      android:fillColor="#006a4e"
+      android:pathData="M160,120 Q170,90 155,60 Q150,50 140,40"
+      android:strokeColor="#006a4e"
+      android:strokeWidth="2"/>
+
+  <!-- Top Stars -->
+  <path android:fillColor="#006a4e" android:pathData="M70,45 L72,50 L77,50 L73,53 L75,58 L70,55 L65,58 L67,53 L63,50 L68,50 Z"/>
+  <path android:fillColor="#006a4e" android:pathData="M90,38 L92,43 L97,43 L93,46 L95,51 L90,48 L85,51 L87,46 L83,43 L88,43 Z"/>
+  <path android:fillColor="#006a4e" android:pathData="M110,38 L112,43 L117,43 L113,46 L115,51 L110,48 L105,51 L107,46 L103,43 L108,43 Z"/>
+  <path android:fillColor="#006a4e" android:pathData="M130,45 L132,50 L137,50 L133,53 L135,58 L130,55 L125,58 L127,53 L123,50 L128,50 Z"/>
+
+</vector>
