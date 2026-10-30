@@ -7,10 +7,12 @@ import AddNewScreen from './home/addnew';
 import PersonListScreen from './home/personlist';
 import CreatingCardScreen from './home/creatingcard';
 import EmailChangeScreen from './home/emailchange';
+import CardScreen from './home/card'; // নতুন কার্ড স্ক্রিন ইমপোর্ট করা হলো
 
 export default function App() {
   const [theme, setTheme] = useState('light');
   const [currentScreen, setCurrentScreen] = useState('home'); // বর্তমান স্ক্রিন ট্র্যাক করার স্টেট
+  const [selectedCardData, setSelectedCardData] = useState(null); // কার্ড ডেটা পাস করার স্টেট
 
   const toggleTheme = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
@@ -24,7 +26,17 @@ export default function App() {
       case 'qrscanner':
         return <QRScannerScreen onBack={() => setCurrentScreen('home')} />;
       case 'addnew':
-        return <AddNewScreen onBack={() => setCurrentScreen('home')} />;
+        return (
+          <AddNewScreen 
+            onBack={() => setCurrentScreen('home')} 
+            onNext={(cardData) => {
+              setSelectedCardData(cardData);
+              setCurrentScreen('cardview'); // ডেটা সহ card স্ক্রিনে নিয়ে যাবে
+            }} 
+          />
+        );
+      case 'cardview':
+        return <CardScreen cardData={selectedCardData} onBack={() => setCurrentScreen('home')} />;
       case 'personlist':
         return <PersonListScreen onBack={() => setCurrentScreen('home')} />;
       case 'creatingcard':
@@ -81,7 +93,7 @@ export default function App() {
   return (
     <SafeAreaView style={[styles.container, isDark ? styles.darkContainer : styles.lightContainer]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-      
+
       {/* উপরে এক লাইন লেখা: UP Servers এবং ইমেইল চেঞ্জ বাটন */}
       <View style={[styles.upServersBar, isDark ? styles.darkBar : styles.lightBar]}>
         <TouchableOpacity onPress={() => setCurrentScreen('home')}>
