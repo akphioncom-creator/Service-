@@ -157,12 +157,13 @@ export default function AddNewScreen({ onBack }) {
         <Text style={styles.btnText}>কার্ড তৈরি করুন</Text>
       </TouchableOpacity>
 
-      {/* ৩. প্রফেশনাল আইডি কার্ড প্রিভিউ ডিজাইন (স্বচ্ছ ব্যাকগ্রাউন্ড লোগো সহ) */}
+      {/* ৩. প্রফেশনাল আইডি কার্ড প্রিভিউ ডিজাইন (সরকারি লোগো ওয়াটারমার্ক সহ) */}
       {generatedCard && (
         <View style={styles.cardContainer}>
-          {/* ব্যাকগ্রাউন্ড স্বচ্ছ লোগো ওয়াটারমার্ক */}
+          {/* ব্যাকগ্রাউন্ডে অফিশিয়াল সরকারি স্বচ্ছ লোগো/ওয়াটারমার্ক */}
           <View style={styles.watermarkContainer} pointerEvents="none">
-            <Text style={styles.watermarkText}>BD</Text>
+            <Text style={styles.watermarkLogoText}>🇧🇩</Text>
+            <Text style={styles.watermarkSubText}>BANGLADESH</Text>
           </View>
 
           {/* কার্ডের মূল বডি */}
@@ -228,7 +229,8 @@ const styles = StyleSheet.create({
   /* প্রফেশনাল আইডি কার্ড প্রিভিউ স্টাইল ও ওয়াটারমার্ক */
   cardContainer: { width: '100%', backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: '#1A365D', borderRadius: 8, padding: 12, marginTop: 15, marginBottom: 15, elevation: 4, position: 'relative', overflow: 'hidden' },
   watermarkContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 0 },
-  watermarkText: { fontSize: 90, fontWeight: 'bold', color: 'rgba(0, 123, 255, 0.08)', transform: [{ rotate: '-30deg' }] },
+  watermarkLogoText: { fontSize: 55, opacity: 0.12 },
+  watermarkSubText: { fontSize: 14, fontWeight: 'bold', color: '#006a4e', opacity: 0.1, letterSpacing: 2, marginTop: -5 },
   cardBody: { flexDirection: 'row', justifyContent: 'space-between', zIndex: 1 },
   cardLeftSection: { width: '36%', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#eee', paddingRight: 6 },
   cardUserImage: { width: 70, height: 85, borderRadius: 4, borderWidth: 1, borderColor: '#ccc', marginBottom: 4 },
