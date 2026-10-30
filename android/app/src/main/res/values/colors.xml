@@ -1,4 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
   <color name="splashscreen_background">#FFFFFF</color>
+  <color name="iconBackground">#1A365D</color>
   <color name="colorPrimary">#023c69</color>
+  
+  <!-- লিংকিং এরর সমাধানের জন্য এই ভেরিয়েবলটি যুক্ত করা অপরিহার্য -->
+  <color name="ic_launcher_background">#1A365D</color>
 </resources>
