@@ -2,11 +2,10 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, Image, ScrollView } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import QRCode from 'react-native-qrcode-svg';
 
 const STORAGE_KEY = 'smart_cards_data';
 
-export default function AddNewScreen({ onBack }) {
+export default function AddNewScreen({ onNext, onBack }) {
   const [image, setImage] = useState(null);
   const [name, setName] = useState('');
   const [nid, setNid] = useState('');
@@ -14,7 +13,6 @@ export default function AddNewScreen({ onBack }) {
   const [village, setVillage] = useState('');
   const [upazila, setUpazila] = useState('');
   const [district, setDistrict] = useState('');
-  const [generatedCard, setGeneratedCard] = useState(null);
 
   // ছবি পিক করার ফাংশন
   const pickImage = async () => {
@@ -30,8 +28,8 @@ export default function AddNewScreen({ onBack }) {
     }
   };
 
-  // ডেটা সেভ এবং কার্ড তৈরির ফাংশন
-  const handleSave = async () => {
+  // ডেটা সেভ এবং নেক্সট স্ক্রিনে যাওয়ার ফাংশন
+  const handleNext = async () => {
     if (!name.trim() || !nid.trim() || !phone.trim() || !village.trim() || !upazila.trim() || !district.trim()) {
       Alert.alert('সতর্কতা', 'দয়া করে সবগুলো ঘর সঠিকভাবে পূরণ করুন!');
       return;
@@ -61,9 +59,10 @@ export default function AddNewScreen({ onBack }) {
       list.unshift(newItem);
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(list));
 
-      // কার্ড প্রিভিউ সেট করা
-      setGeneratedCard(newItem);
-      Alert.alert('সফল', 'স্মার্ট কার্ড সফলভাবে তৈরি এবং সংরক্ষিত হয়েছে!');
+      // সফলভাবে সেভ হওয়ার পর card.js (onNext) এ ডেটা পাঠিয়ে দেওয়া
+      if (onNext) {
+        onNext(newItem);
+      }
     } catch (error) {
       Alert.alert('ত্রুটি', 'ডেটা সংরক্ষণ করতে সমস্যা হয়েছে।');
     }
@@ -73,7 +72,7 @@ export default function AddNewScreen({ onBack }) {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.mainTitle}>Smart Card Register</Text>
 
-      {/* ১. ফটো আপলোড অপশন (সবার উপরে) */}
+      {/* ফটো আপলোড অপশন */}
       <View style={styles.imageContainer}>
         <TouchableOpacity style={styles.imagePickerBtn} onPress={pickImage}>
           {image ? (
@@ -84,7 +83,7 @@ export default function AddNewScreen({ onBack }) {
         </TouchableOpacity>
       </View>
 
-      {/* ২. ইনপুট ফিল্ডসমূহ */}
+      {/* ইনপুট ফিল্ডসমূহ */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Name (নাম):</Text>
         <TextInput
@@ -153,58 +152,10 @@ export default function AddNewScreen({ onBack }) {
         />
       </View>
 
-      <TouchableOpacity style={styles.btn} onPress={handleSave}>
-        <Text style={styles.btnText}>কার্ড তৈরি করুন</Text>
+      {/* নেক্সট বাটন */}
+      <TouchableOpacity style={styles.btn} onPress={handleNext}>
+        <Text style={styles.btnText}>নেক্সট (কার্ড দেখুন)</Text>
       </TouchableOpacity>
-
-      {/* ৩. প্রফেশনাল আইডি কার্ড প্রিভিউ ডিজাইন (ওয়াটারমার্ক সহ) */}
-      {generatedCard && (
-        <View style={styles.cardContainer}>
-          {/* ব্যাকগ্রাউন্ডে ওয়াটারমার্ক লোগো */}
-          <View style={styles.watermarkContainer} pointerEvents="none">
-            <Image 
-              source={{ uri: 'https://i.ibb.co.com/84p56b3/bd-logo.png' }} 
-              style={styles.watermarkImage} 
-              resizeMode="contain"
-            />
-          </View>
-
-          {/* কার্ডের মূল বডি */}
-          <View style={styles.cardBody}>
-            {/* বাম পাশ: ছবি ও ঠিকানা */}
-            <View style={styles.cardLeftSection}>
-              {generatedCard.image ? (
-                <Image source={{ uri: generatedCard.image }} style={styles.cardUserImage} />
-              ) : (
-                <View style={[styles.cardUserImage, { backgroundColor: '#ccc' }]} />
-              )}
-              <Text style={styles.cardAddressText}>{generatedCard.district}</Text>
-              <Text style={styles.cardAddressText}>{generatedCard.upazila}</Text>
-              <Text style={styles.cardAddressText}>গ্রাম: {generatedCard.village}</Text>
-            </View>
-
-            {/* মাঝের অংশ: নাম, এনআইডি, মোবাইল ও তারিখ */}
-            <View style={styles.cardMiddleSection}>
-              <Text style={styles.fieldLabel}>নাম</Text>
-              <Text style={styles.fieldValue} numberOfLines={1}>{generatedCard.name}</Text>
-
-              <Text style={styles.fieldLabel}>জাতীয় পরিচয়পত্র নম্বর</Text>
-              <Text style={styles.fieldValue}>{generatedCard.nid}</Text>
-
-              <Text style={styles.fieldLabel}>মোবাইল নম্বর</Text>
-              <Text style={styles.fieldValue}>{generatedCard.phone}</Text>
-
-              <Text style={styles.fieldLabel}>তারিখ</Text>
-              <Text style={styles.fieldValue}>{generatedCard.createdAt}</Text>
-            </View>
-
-            {/* ডান পাশ: বড় কিউআর কোড */}
-            <View style={styles.cardRightSection}>
-              <QRCode value={generatedCard.nid || 'smart-card'} size={105} />
-            </View>
-          </View>
-        </View>
-      )}
 
       <TouchableOpacity style={[styles.btn, styles.backBtn]} onPress={onBack}>
         <Text style={styles.btnText}>ফিরে যান</Text>
@@ -225,18 +176,5 @@ const styles = StyleSheet.create({
   input: { height: 48, borderWidth: 1, borderColor: '#ced4da', borderRadius: 8, paddingHorizontal: 15, backgroundColor: '#fff', fontSize: 16, color: '#000' },
   btn: { backgroundColor: '#28a745', paddingVertical: 12, borderRadius: 8, alignItems: 'center', marginTop: 10, marginBottom: 10 },
   backBtn: { backgroundColor: '#6c757d', marginBottom: 30 },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  
-  /* প্রফেশনাল আইডি কার্ড প্রিভিউ স্টাইল ও ওয়াটারমার্ক */
-  cardContainer: { width: '100%', backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: '#1A365D', borderRadius: 10, padding: 14, marginTop: 15, marginBottom: 15, elevation: 5, position: 'relative', overflow: 'hidden' },
-  watermarkContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 0 },
-  watermarkImage: { width: 160, height: 160, opacity: 0.1 }, // লোগোটিকে স্বচ্ছ ও হালকা করার জন্য অপাসিটি সেট করা হয়েছে
-  cardBody: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 1 },
-  cardLeftSection: { width: '27%', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#eee', paddingRight: 6 },
-  cardUserImage: { width: 68, height: 85, borderRadius: 4, borderWidth: 1, borderColor: '#ccc', marginBottom: 6 },
-  cardAddressText: { fontSize: 10, color: '#333', textAlign: 'center' },
-  cardMiddleSection: { width: '37%', paddingLeft: 8, paddingRight: 6 },
-  fieldLabel: { fontSize: 9, color: '#666', marginTop: 3 },
-  fieldValue: { fontSize: 12, fontWeight: 'bold', color: '#000' },
-  cardRightSection: { width: '36%', alignItems: 'center', justifyContent: 'center', borderLeftWidth: 1, borderLeftColor: '#eee', paddingLeft: 6 }
+  btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
 });
