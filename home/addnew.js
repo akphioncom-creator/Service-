@@ -1,22 +1,21 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert } from 'react-native';
-import { MMKV } from 'react-native-mmkv';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const storage = new MMKV();
 const STORAGE_KEY = 'persistent_numbers_data';
 
 export default function AddNewScreen({ onBack }) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim() || !phone.trim()) {
       Alert.alert('সতর্কতা', 'নাম এবং নম্বর উভয়ই পূরণ করুন!');
       return;
     }
 
     try {
-      const existingData = storage.getString(STORAGE_KEY);
+      const existingData = await AsyncStorage.getItem(STORAGE_KEY);
       let list = existingData ? JSON.parse(existingData) : [];
 
       if (list.length >= 2000) {
@@ -32,13 +31,14 @@ export default function AddNewScreen({ onBack }) {
       };
 
       list.unshift(newItem);
-      storage.set(STORAGE_KEY, JSON.stringify(list));
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(list));
 
       Alert.alert('সফল', 'নতুন ডেটা সফলভাবে সংরক্ষিত হয়েছে!');
       setName('');
       setPhone('');
     } catch (error) {
       Alert.alert('ত্রুটি', 'ডেটা সংরক্ষণ করতে সমস্যা হয়েছে।');
+      console.log('Save error:', error);
     }
   };
 
@@ -58,7 +58,7 @@ export default function AddNewScreen({ onBack }) {
         placeholder="নম্বর লিখুন (যেমন: 017...)"
         value={phone}
         onChangeText={setPhone}
-        keyboardStorage="numeric"
+        keyboardType="numeric"
       />
 
       <TouchableOpacity style={styles.btn} onPress={handleSave}>
