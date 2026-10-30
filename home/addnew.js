@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, Image, ScrollView } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import QRCode from 'react-native-qrcode-svg';
 
 const STORAGE_KEY = 'smart_cards_data';
 
@@ -70,7 +71,7 @@ export default function AddNewScreen({ onBack }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Smart Card Register</Text>
+      <Text style={styles.mainTitle}>Smart Card Register</Text>
 
       {/* ১. ফটো আপলোড অপশন (সবার উপরে) */}
       <View style={styles.imageContainer}>
@@ -83,7 +84,7 @@ export default function AddNewScreen({ onBack }) {
         </TouchableOpacity>
       </View>
 
-      {/* ২. ইনপুট ফিল্ডসমূহ (প্লেসহোল্ডারসহ স্পষ্ট করা হয়েছে) */}
+      {/* ২. ইনপুট ফিল্ডসমূহ */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Name (নাম):</Text>
         <TextInput
@@ -156,16 +157,53 @@ export default function AddNewScreen({ onBack }) {
         <Text style={styles.btnText}>কার্ড তৈরি করুন</Text>
       </TouchableOpacity>
 
-      {/* ৩. কার্ড প্রিভিউ সেকশন */}
+      {/* ৩. ছবির মতো স্মার্ট কার্ড প্রিভিউ ডিজাইন */}
       {generatedCard && (
-        <View style={styles.cardPreviewBox}>
-          <Text style={styles.cardTitle}>🌟 Smart Card Preview 🌟</Text>
-          {generatedCard.image && <Image source={{ uri: generatedCard.image }} style={styles.cardImage} />}
-          <Text style={styles.cardText}>নাম: {generatedCard.name}</Text>
-          <Text style={styles.cardText}>এনআইডি: {generatedCard.nid}</Text>
-          <Text style={styles.cardText}>মোবাইল: {generatedCard.phone}</Text>
-          <Text style={styles.cardText}>গ্রাম: {generatedCard.village}, উপজেলা: {generatedCard.upazila}</Text>
-          <Text style={styles.cardText}>জেলা: {generatedCard.district}</Text>
+        <View style={styles.cardContainer}>
+          {/* কার্ড হেডার */}
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitleText}>স্মার্ট ফ্যামিলি কার্ড</Text>
+            <Text style={styles.cardSubDate}>তারিখ: {generatedCard.createdAt}</Text>
+          </View>
+
+          {/* কার্ডের মূল বডি */}
+          <View style={styles.cardBody}>
+            {/* বাম পাশ: ছবি ও ঠিকানা */}
+            <View style={styles.cardLeftSection}>
+              {generatedCard.image ? (
+                <Image source={{ uri: generatedCard.image }} style={styles.cardUserImage} />
+              ) : (
+                <View style={[styles.cardUserImage, { backgroundColor: '#ccc' }]} />
+              )}
+              <Text style={styles.cardAddressText}>{generatedCard.district}</Text>
+              <Text style={styles.cardAddressText}>{generatedCard.upazila}</Text>
+              <Text style={styles.cardAddressText}>গ্রাম: {generatedCard.village}</Text>
+            </View>
+
+            {/* ডান পাশ: নাম, নম্বর ও কিউআর কোড */}
+            <View style={styles.cardRightSection}>
+              <View>
+                <Text style={styles.fieldLabel}>নাম</Text>
+                <Text style={styles.fieldValue}>{generatedCard.name}</Text>
+
+                <Text style={styles.fieldLabel}>জাতীয় পরিচয়পত্র নম্বর</Text>
+                <Text style={styles.fieldValue}>{generatedCard.nid}</Text>
+
+                <Text style={styles.fieldLabel}>মোবাইল নম্বর</Text>
+                <Text style={styles.fieldValue}>{generatedCard.phone}</Text>
+              </View>
+
+              {/* কিউআর কোড */}
+              <View style={styles.qrCodeWrapper}>
+                <QRCode value={generatedCard.nid || 'smart-card'} size={65} />
+              </View>
+            </View>
+          </View>
+
+          {/* কার্ড ফুটার বারকোড বা ওয়েবসাইট */}
+          <View style={styles.cardFooter}>
+            <Text style={styles.footerWebsite}>ওয়েবসাইট: www.tcb.gov.bd</Text>
+          </View>
         </View>
       )}
 
@@ -178,7 +216,7 @@ export default function AddNewScreen({ onBack }) {
 
 const styles = StyleSheet.create({
   container: { flexGrow: 1, padding: 20, backgroundColor: '#f8f9fa', paddingTop: 40 },
-  title: { fontSize: 22, fontWeight: 'bold', marginBottom: 20, textAlign: 'center', color: '#1A365D' },
+  mainTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 20, textAlign: 'center', color: '#1A365D' },
   imageContainer: { alignItems: 'center', marginBottom: 20 },
   imagePickerBtn: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#e9ecef', borderWidth: 2, borderColor: '#007bff', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   previewImage: { width: '100%', height: '100%' },
@@ -189,8 +227,20 @@ const styles = StyleSheet.create({
   btn: { backgroundColor: '#28a745', paddingVertical: 12, borderRadius: 8, alignItems: 'center', marginTop: 10, marginBottom: 10 },
   backBtn: { backgroundColor: '#6c757d', marginBottom: 30 },
   btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  cardPreviewBox: { backgroundColor: '#ffffff', borderWidth: 2, borderColor: '#007bff', borderRadius: 12, padding: 20, alignItems: 'center', marginTop: 15, marginBottom: 15, elevation: 5 },
-  cardTitle: { fontSize: 18, fontWeight: 'bold', color: '#007bff', marginBottom: 12 },
-  cardImage: { width: 80, height: 80, borderRadius: 40, marginBottom: 12, borderWidth: 1, borderColor: '#ddd' },
-  cardText: { fontSize: 14, color: '#333', marginBottom: 5, textAlign: 'center' }
+  
+  /* স্মার্ট কার্ড প্রিভিউ স্টাইল (ছবির আদলে তৈরি) */
+  cardContainer: { backgroundColor: '#ffffff', borderWidth: 2, borderColor: '#28a745', borderRadius: 10, padding: 12, marginTop: 15, marginBottom: 15, elevation: 5 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#ddd', paddingBottom: 6, marginBottom: 8 },
+  cardTitleText: { fontSize: 16, fontWeight: 'bold', color: '#1A365D' },
+  cardSubDate: { fontSize: 11, color: '#666' },
+  cardBody: { flexDirection: 'row', justifyContent: 'space-between' },
+  cardLeftSection: { width: '35%', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#eee', paddingRight: 8 },
+  cardUserImage: { width: 75, height: 90, borderRadius: 4, borderWidth: 1, borderColor: '#ccc', marginBottom: 6 },
+  cardAddressText: { fontSize: 11, color: '#333', textAlign: 'center' },
+  cardRightSection: { width: '62%', justifyContent: 'space-between', paddingLeft: 6 },
+  fieldLabel: { fontSize: 10, color: '#666', marginTop: 3 },
+  fieldValue: { fontSize: 13, fontWeight: 'bold', color: '#000' },
+  qrCodeWrapper: { alignSelf: 'flex-end', marginTop: 5 },
+  cardFooter: { borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 6, marginTop: 8, alignItems: 'center' },
+  footerWebsite: { fontSize: 11, fontWeight: 'bold', color: '#007bff' }
 });
