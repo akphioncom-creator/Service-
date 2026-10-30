@@ -157,9 +157,14 @@ export default function AddNewScreen({ onBack }) {
         <Text style={styles.btnText}>কার্ড তৈরি করুন</Text>
       </TouchableOpacity>
 
-      {/* ৩. প্রফেশনাল আইডি কার্ড প্রিভিউ ডিজাইন */}
+      {/* ৩. প্রফেশনাল আইডি কার্ড প্রিভিউ ডিজাইন (স্বচ্ছ ব্যাকগ্রাউন্ড লোগো সহ) */}
       {generatedCard && (
         <View style={styles.cardContainer}>
+          {/* ব্যাকগ্রাউন্ড স্বচ্ছ লোগো ওয়াটারমার্ক */}
+          <View style={styles.watermarkContainer} pointerEvents="none">
+            <Text style={styles.watermarkText}>BD</Text>
+          </View>
+
           {/* কার্ডের মূল বডি */}
           <View style={styles.cardBody}>
             {/* বাম পাশ: ছবি ও ঠিকানা */}
@@ -220,9 +225,11 @@ const styles = StyleSheet.create({
   backBtn: { backgroundColor: '#6c757d', marginBottom: 30 },
   btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   
-  /* প্রফেশনাল আইডি কার্ড প্রিভিউ স্টাইল */
-  cardContainer: { width: '100%', backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: '#1A365D', borderRadius: 8, padding: 12, marginTop: 15, marginBottom: 15, elevation: 4 },
-  cardBody: { flexDirection: 'row', justifyContent: 'space-between' },
+  /* প্রফেশনাল আইডি কার্ড প্রিভিউ স্টাইল ও ওয়াটারমার্ক */
+  cardContainer: { width: '100%', backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: '#1A365D', borderRadius: 8, padding: 12, marginTop: 15, marginBottom: 15, elevation: 4, position: 'relative', overflow: 'hidden' },
+  watermarkContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 0 },
+  watermarkText: { fontSize: 90, fontWeight: 'bold', color: 'rgba(0, 123, 255, 0.08)', transform: [{ rotate: '-30deg' }] },
+  cardBody: { flexDirection: 'row', justifyContent: 'space-between', zIndex: 1 },
   cardLeftSection: { width: '36%', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#eee', paddingRight: 6 },
   cardUserImage: { width: 70, height: 85, borderRadius: 4, borderWidth: 1, borderColor: '#ccc', marginBottom: 4 },
   cardAddressText: { fontSize: 10, color: '#333', textAlign: 'center' },
