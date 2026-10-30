@@ -1,4 +1,4 @@
-package com.yourpackage
+package com.smartservice.app
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule
