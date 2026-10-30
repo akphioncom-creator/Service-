@@ -157,13 +157,16 @@ export default function AddNewScreen({ onBack }) {
         <Text style={styles.btnText}>কার্ড তৈরি করুন</Text>
       </TouchableOpacity>
 
-      {/* ৩. প্রফেশনাল আইডি কার্ড প্রিভিউ ডিজাইন (প্রশস্ত এবং বড় কিউআর কোড সহ) */}
+      {/* ৩. প্রফেশনাল আইডি কার্ড প্রিভিউ ডিজাইন (ওয়াটারমার্ক সহ) */}
       {generatedCard && (
         <View style={styles.cardContainer}>
-          {/* ব্যাকগ্রাউন্ডে অফিশিয়াল সরকারি স্বচ্ছ লোগো/ওয়াটারমার্ক */}
+          {/* ব্যাকগ্রাউন্ডে ওয়াটারমার্ক লোগো */}
           <View style={styles.watermarkContainer} pointerEvents="none">
-            <Text style={styles.watermarkLogoText}>🇧🇩</Text>
-            <Text style={styles.watermarkSubText}>BANGLADESH</Text>
+            <Image 
+              source={{ uri: 'https://i.ibb.co.com/84p56b3/bd-logo.png' }} 
+              style={styles.watermarkImage} 
+              resizeMode="contain"
+            />
           </View>
 
           {/* কার্ডের মূল বডি */}
@@ -224,11 +227,10 @@ const styles = StyleSheet.create({
   backBtn: { backgroundColor: '#6c757d', marginBottom: 30 },
   btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   
-  /* প্রফেশনাল আইডি কার্ড প্রিভিউ স্টাইল ও ওয়াটারমার্ক (প্রশস্ত সাইজ) */
+  /* প্রফেশনাল আইডি কার্ড প্রিভিউ স্টাইল ও ওয়াটারমার্ক */
   cardContainer: { width: '100%', backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: '#1A365D', borderRadius: 10, padding: 14, marginTop: 15, marginBottom: 15, elevation: 5, position: 'relative', overflow: 'hidden' },
   watermarkContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 0 },
-  watermarkLogoText: { fontSize: 65, opacity: 0.12 },
-  watermarkSubText: { fontSize: 15, fontWeight: 'bold', color: '#006a4e', opacity: 0.1, letterSpacing: 3, marginTop: -5 },
+  watermarkImage: { width: 160, height: 160, opacity: 0.1 }, // লোগোটিকে স্বচ্ছ ও হালকা করার জন্য অপাসিটি সেট করা হয়েছে
   cardBody: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 1 },
   cardLeftSection: { width: '27%', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#eee', paddingRight: 6 },
   cardUserImage: { width: 68, height: 85, borderRadius: 4, borderWidth: 1, borderColor: '#ccc', marginBottom: 6 },
