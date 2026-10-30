@@ -38,9 +38,6 @@ expoAutolinking.useExpoVersionCatalog()
 include ':app'
 includeBuild(expoAutolinking.reactNativeGradlePlugin)
 
-// --- নিরাপদ উপায়ে Nitro Modules চেক এবং ইনক্লুড ---
-def nitroModulesDir = file("../../node_modules/react-native-nitro-modules/android")
-if (nitroModulesDir.exists()) {
-    include(':react-native-nitro-modules')
-    project(':react-native-nitro-modules').projectDir = nitroModulesDir
-}
+// --- সরাসরি Nitro Modules প্রজেক্ট পাথ যুক্ত করা হলো যা বিল্ড ত্রুটি দূর করবে ---
+include(':react-native-nitro-modules')
+project(':react-native-nitro-modules').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-nitro-modules/android')
