@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TextInput, FlatList, TouchableOpacity } from 'react-native';
-import { MMKV } from 'react-native-mmkv';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const storage = new MMKV();
 const STORAGE_KEY = 'persistent_numbers_data';
 
 export default function PersonListScreen({ onBack }) {
@@ -11,12 +10,20 @@ export default function PersonListScreen({ onBack }) {
   const [filteredList, setFilteredList] = useState([]);
 
   useEffect(() => {
-    const data = storage.getString(STORAGE_KEY);
-    if (data) {
-      const parsed = JSON.parse(data);
-      setDataList(parsed);
-      setFilteredList(parsed);
-    }
+    const loadData = async () => {
+      try {
+        const data = await AsyncStorage.getItem(STORAGE_KEY);
+        if (data) {
+          const parsed = JSON.parse(data);
+          setDataList(parsed);
+          setFilteredList(parsed);
+        }
+      } catch (error) {
+        console.log('Load error:', error);
+      }
+    };
+
+    loadData();
   }, []);
 
   const handleSearch = (text) => {
@@ -25,10 +32,12 @@ export default function PersonListScreen({ onBack }) {
       setFilteredList(dataList);
       return;
     }
-    const results = dataList.filter(item => 
-      item.number.toLowerCase().includes(text.toLowerCase()) || 
+
+    const results = dataList.filter(item =>
+      item.number.toLowerCase().includes(text.toLowerCase()) ||
       item.name.toLowerCase().includes(text.toLowerCase())
     );
+
     setFilteredList(results);
   };
 
