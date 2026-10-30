@@ -1,4 +1,4 @@
-package com.yourpackage // আপনার প্রজেক্টের সঠিক প্যাকেজ নেম এখানে দিন
+package com.smartservice.app
 
 import android.content.ContentValues
 import android.content.Context
@@ -25,7 +25,6 @@ class GalleryModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
     fun saveImageToGallery(imagePath: String, promise: Promise) {
         val context: Context = reactApplicationContext
         try {
-            // file:// বা content:// প্রোটোকল হ্যান্ডেল করা
             val cleanPath = imagePath.replace("file://", "")
             val bitmap = BitmapFactory.decodeFile(cleanPath)
 
