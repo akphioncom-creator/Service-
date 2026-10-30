@@ -126,7 +126,7 @@ export default function AddNewScreen({ onBack }) {
           style={styles.input}
           placeholder="গ্রামের নাম লিখুন..."
           placeholderTextColor="#999"
-          value= {village}
+          value={village}
           onChangeText={setVillage}
         />
       </View>
@@ -157,15 +157,9 @@ export default function AddNewScreen({ onBack }) {
         <Text style={styles.btnText}>কার্ড তৈরি করুন</Text>
       </TouchableOpacity>
 
-      {/* ৩. প্রফেশনাল আইডি কার্ড সাইজ ও ডিজাইন প্রিভিউ */}
+      {/* ৩. প্রফেশনাল আইডি কার্ড প্রিভিউ ডিজাইন */}
       {generatedCard && (
         <View style={styles.cardContainer}>
-          {/* কার্ড হেডার (তারিখ বা আইডি মোড) */}
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardBrandText}>SMART ID CARD</Text>
-            <Text style={styles.cardSubDate}>তারিখ: {generatedCard.createdAt}</Text>
-          </View>
-
           {/* কার্ডের মূল বডি */}
           <View style={styles.cardBody}>
             {/* বাম পাশ: ছবি ও ঠিকানা */}
@@ -180,7 +174,7 @@ export default function AddNewScreen({ onBack }) {
               <Text style={styles.cardAddressText}>গ্রাম: {generatedCard.village}</Text>
             </View>
 
-            {/* ডান পাশ: নাম, নম্বর ও কিউআর কোড */}
+            {/* ডান পাশ: নাম, নম্বর, তারিখ ও কিউআর কোড */}
             <View style={styles.cardRightSection}>
               <View>
                 <Text style={styles.fieldLabel}>নাম</Text>
@@ -191,6 +185,9 @@ export default function AddNewScreen({ onBack }) {
 
                 <Text style={styles.fieldLabel}>মোবাইল নম্বর</Text>
                 <Text style={styles.fieldValue}>{generatedCard.phone}</Text>
+
+                <Text style={styles.fieldLabel}>তারিখ</Text>
+                <Text style={styles.fieldValue}>{generatedCard.createdAt}</Text>
               </View>
 
               {/* কিউআর কোড */}
@@ -224,10 +221,7 @@ const styles = StyleSheet.create({
   btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   
   /* প্রফেশনাল আইডি কার্ড প্রিভিউ স্টাইল */
-  cardContainer: { width: '100%', backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: '#1A365D', borderRadius: 8, padding: 10, marginTop: 15, marginBottom: 15, elevation: 4 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#eee', paddingBottom: 4, marginBottom: 6 },
-  cardBrandText: { fontSize: 13, fontWeight: 'bold', color: '#1A365D', letterSpacing: 1 },
-  cardSubDate: { fontSize: 10, color: '#666' },
+  cardContainer: { width: '100%', backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: '#1A365D', borderRadius: 8, padding: 12, marginTop: 15, marginBottom: 15, elevation: 4 },
   cardBody: { flexDirection: 'row', justifyContent: 'space-between' },
   cardLeftSection: { width: '36%', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#eee', paddingRight: 6 },
   cardUserImage: { width: 70, height: 85, borderRadius: 4, borderWidth: 1, borderColor: '#ccc', marginBottom: 4 },
