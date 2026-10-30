@@ -157,18 +157,18 @@ export default function AddNewScreen({ onBack }) {
         <Text style={styles.btnText}>কার্ড তৈরি করুন</Text>
       </TouchableOpacity>
 
-      {/* ৩. প্রফেশনাল আইডি কার্ড প্রিভিউ ডিজাইন (অর্ধেক তথ্য ও অর্ধেক কিউআর কোড) */}
+      {/* ৩. প্রফেশনাল আইডি কার্ড প্রিভিউ ডিজাইন */}
       {generatedCard && (
         <View style={styles.cardContainer}>
-          {/* ব্যাকগ্রাউন্ডে সরকারি লোগো ওয়াটারমার্ক */}
+          {/* ব্যাকগ্রাউন্ডে অফিশিয়াল সরকারি স্বচ্ছ লোগো/ওয়াটারমার্ক */}
           <View style={styles.watermarkContainer} pointerEvents="none">
             <Text style={styles.watermarkLogoText}>🇧🇩</Text>
             <Text style={styles.watermarkSubText}>BANGLADESH</Text>
           </View>
 
-          {/* কার্ডের মূল বডি (৫০%-৫০% লেআউট) */}
+          {/* কার্ডের মূল বডি */}
           <View style={styles.cardBody}>
-            {/* বাম অর্ধেক: ছবি ও ঠিকানা */}
+            {/* বাম পাশ: ছবি ও ঠিকানা */}
             <View style={styles.cardLeftSection}>
               {generatedCard.image ? (
                 <Image source={{ uri: generatedCard.image }} style={styles.cardUserImage} />
@@ -180,26 +180,24 @@ export default function AddNewScreen({ onBack }) {
               <Text style={styles.cardAddressText}>গ্রাম: {generatedCard.village}</Text>
             </View>
 
-            {/* ডান অর্ধেক: তথ্য এবং কিউআর কোড */}
+            {/* মাঝের অংশ: নাম, এনআইডি, মোবাইল ও তারিখ */}
+            <View style={styles.cardMiddleSection}>
+              <Text style={styles.fieldLabel}>নাম</Text>
+              <Text style={styles.fieldValue} numberOfLines={1}>{generatedCard.name}</Text>
+
+              <Text style={styles.fieldLabel}>জাতীয় পরিচয়পত্র নম্বর</Text>
+              <Text style={styles.fieldValue}>{generatedCard.nid}</Text>
+
+              <Text style={styles.fieldLabel}>মোবাইল নম্বর</Text>
+              <Text style={styles.fieldValue}>{generatedCard.phone}</Text>
+
+              <Text style={styles.fieldLabel}>তারিখ</Text>
+              <Text style={styles.fieldValue}>{generatedCard.createdAt}</Text>
+            </View>
+
+            {/* ডান পাশ: সম্পূর্ণ অংশ জুড়ে কিউআর কোড */}
             <View style={styles.cardRightSection}>
-              <View>
-                <Text style={styles.fieldLabel}>নাম</Text>
-                <Text style={styles.fieldValue}>{generatedCard.name}</Text>
-
-                <Text style={styles.fieldLabel}>জাতীয় পরিচয়পত্র নম্বর</Text>
-                <Text style={styles.fieldValue}>{generatedCard.nid}</Text>
-
-                <Text style={styles.fieldLabel}>মোবাইল নম্বর</Text>
-                <Text style={styles.fieldValue}>{generatedCard.phone}</Text>
-
-                <Text style={styles.fieldLabel}>তারিখ</Text>
-                <Text style={styles.fieldValue}>{generatedCard.createdAt}</Text>
-              </View>
-
-              {/* ডান অর্ধেকের নিচের অংশে কিউআর কোড */}
-              <View style={styles.qrCodeWrapper}>
-                <QRCode value={generatedCard.nid || 'smart-card'} size={65} />
-              </View>
+              <QRCode value={generatedCard.nid || 'smart-card'} size={85} />
             </View>
           </View>
         </View>
@@ -226,17 +224,17 @@ const styles = StyleSheet.create({
   backBtn: { backgroundColor: '#6c757d', marginBottom: 30 },
   btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   
-  /* প্রফেশনাল আইডি কার্ড প্রিভিউ স্টাইল (অর্ধেক তথ্য ও অর্ধেক কিউআর কোড) */
-  cardContainer: { width: '100%', backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: '#1A365D', borderRadius: 8, padding: 12, marginTop: 15, marginBottom: 15, elevation: 4, position: 'relative', overflow: 'hidden' },
+  /* প্রফেশনাল আইডি কার্ড প্রিভিউ স্টাইল ও ওয়াটারমার্ক */
+  cardContainer: { width: '100%', backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: '#1A365D', borderRadius: 8, padding: 10, marginTop: 15, marginBottom: 15, elevation: 4, position: 'relative', overflow: 'hidden' },
   watermarkContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 0 },
   watermarkLogoText: { fontSize: 55, opacity: 0.12 },
   watermarkSubText: { fontSize: 14, fontWeight: 'bold', color: '#006a4e', opacity: 0.1, letterSpacing: 2, marginTop: -5 },
-  cardBody: { flexDirection: 'row', justifyContent: 'space-between', zIndex: 1 },
-  cardLeftSection: { width: '48%', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#eee', paddingRight: 8, justifyContent: 'center' },
-  cardUserImage: { width: 75, height: 90, borderRadius: 4, borderWidth: 1, borderColor: '#ccc', marginBottom: 6 },
-  cardAddressText: { fontSize: 11, color: '#333', textAlign: 'center' },
-  cardRightSection: { width: '48%', justifyContent: 'space-between', paddingLeft: 8, alignItems: 'center' },
-  fieldLabel: { fontSize: 9, color: '#666', marginTop: 2, textAlign: 'center' },
-  fieldValue: { fontSize: 12, fontWeight: 'bold', color: '#000', textAlign: 'center' },
-  qrCodeWrapper: { marginTop: 10, alignItems: 'center' }
+  cardBody: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 1 },
+  cardLeftSection: { width: '28%', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#eee', paddingRight: 4 },
+  cardUserImage: { width: 60, height: 75, borderRadius: 4, borderWidth: 1, borderColor: '#ccc', marginBottom: 4 },
+  cardAddressText: { fontSize: 9, color: '#333', textAlign: 'center' },
+  cardMiddleSection: { width: '38%', paddingLeft: 6, paddingRight: 6 },
+  fieldLabel: { fontSize: 8, color: '#666', marginTop: 2 },
+  fieldValue: { fontSize: 11, fontWeight: 'bold', color: '#000' },
+  cardRightSection: { width: '32%', alignItems: 'center', justifyContent: 'center', borderLeftWidth: 1, borderLeftColor: '#eee', paddingLeft: 4 }
 });
