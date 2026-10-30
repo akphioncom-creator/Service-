@@ -126,7 +126,7 @@ export default function AddNewScreen({ onBack }) {
           style={styles.input}
           placeholder="গ্রামের নাম লিখুন..."
           placeholderTextColor="#999"
-          value={village}
+          value= {village}
           onChangeText={setVillage}
         />
       </View>
@@ -157,12 +157,12 @@ export default function AddNewScreen({ onBack }) {
         <Text style={styles.btnText}>কার্ড তৈরি করুন</Text>
       </TouchableOpacity>
 
-      {/* ৩. ছবির মতো স্মার্ট কার্ড প্রিভিউ ডিজাইন */}
+      {/* ৩. প্রফেশনাল আইডি কার্ড সাইজ ও ডিজাইন প্রিভিউ */}
       {generatedCard && (
         <View style={styles.cardContainer}>
-          {/* কার্ড হেডার */}
+          {/* কার্ড হেডার (তারিখ বা আইডি মোড) */}
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitleText}>স্মার্ট ফ্যামিলি কার্ড</Text>
+            <Text style={styles.cardBrandText}>SMART ID CARD</Text>
             <Text style={styles.cardSubDate}>তারিখ: {generatedCard.createdAt}</Text>
           </View>
 
@@ -195,14 +195,9 @@ export default function AddNewScreen({ onBack }) {
 
               {/* কিউআর কোড */}
               <View style={styles.qrCodeWrapper}>
-                <QRCode value={generatedCard.nid || 'smart-card'} size={65} />
+                <QRCode value={generatedCard.nid || 'smart-card'} size={60} />
               </View>
             </View>
-          </View>
-
-          {/* কার্ড ফুটার বারকোড বা ওয়েবসাইট */}
-          <View style={styles.cardFooter}>
-            <Text style={styles.footerWebsite}>ওয়েবসাইট: www.tcb.gov.bd</Text>
           </View>
         </View>
       )}
@@ -228,19 +223,17 @@ const styles = StyleSheet.create({
   backBtn: { backgroundColor: '#6c757d', marginBottom: 30 },
   btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   
-  /* স্মার্ট কার্ড প্রিভিউ স্টাইল (ছবির আদলে তৈরি) */
-  cardContainer: { backgroundColor: '#ffffff', borderWidth: 2, borderColor: '#28a745', borderRadius: 10, padding: 12, marginTop: 15, marginBottom: 15, elevation: 5 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#ddd', paddingBottom: 6, marginBottom: 8 },
-  cardTitleText: { fontSize: 16, fontWeight: 'bold', color: '#1A365D' },
-  cardSubDate: { fontSize: 11, color: '#666' },
+  /* প্রফেশনাল আইডি কার্ড প্রিভিউ স্টাইল */
+  cardContainer: { width: '100%', backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: '#1A365D', borderRadius: 8, padding: 10, marginTop: 15, marginBottom: 15, elevation: 4 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#eee', paddingBottom: 4, marginBottom: 6 },
+  cardBrandText: { fontSize: 13, fontWeight: 'bold', color: '#1A365D', letterSpacing: 1 },
+  cardSubDate: { fontSize: 10, color: '#666' },
   cardBody: { flexDirection: 'row', justifyContent: 'space-between' },
-  cardLeftSection: { width: '35%', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#eee', paddingRight: 8 },
-  cardUserImage: { width: 75, height: 90, borderRadius: 4, borderWidth: 1, borderColor: '#ccc', marginBottom: 6 },
-  cardAddressText: { fontSize: 11, color: '#333', textAlign: 'center' },
-  cardRightSection: { width: '62%', justifyContent: 'space-between', paddingLeft: 6 },
-  fieldLabel: { fontSize: 10, color: '#666', marginTop: 3 },
-  fieldValue: { fontSize: 13, fontWeight: 'bold', color: '#000' },
-  qrCodeWrapper: { alignSelf: 'flex-end', marginTop: 5 },
-  cardFooter: { borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 6, marginTop: 8, alignItems: 'center' },
-  footerWebsite: { fontSize: 11, fontWeight: 'bold', color: '#007bff' }
+  cardLeftSection: { width: '36%', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#eee', paddingRight: 6 },
+  cardUserImage: { width: 70, height: 85, borderRadius: 4, borderWidth: 1, borderColor: '#ccc', marginBottom: 4 },
+  cardAddressText: { fontSize: 10, color: '#333', textAlign: 'center' },
+  cardRightSection: { width: '62%', justifyContent: 'space-between', paddingLeft: 4 },
+  fieldLabel: { fontSize: 9, color: '#666', marginTop: 2 },
+  fieldValue: { fontSize: 12, fontWeight: 'bold', color: '#000' },
+  qrCodeWrapper: { alignSelf: 'flex-end', marginTop: 4 }
 });
