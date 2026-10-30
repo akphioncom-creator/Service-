@@ -35,9 +35,9 @@ class MainApplication : Application(), ReactApplication {
       context = applicationContext,
       packageList =
         PackageList(this).packages.apply {
-          // এখানে উভয় কাস্টম প্যাকেজ যুক্ত করা হলো
+          // কাস্টম প্যাকেজগুলো এখানে সঠিকভাবে যুক্ত করা হলো
           add(SafeAreaPackage())
-          add(GalleryPackage())
+          add(GalleryPackage()) // গ্যালারি প্যাকেজটি এখানে নিশ্চিত করা হলো
         }
     )
   }
