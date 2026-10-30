@@ -1,4 +1,4 @@
-package com.omarfaruk.ebook
+package com.smartservice.app
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
