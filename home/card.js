@@ -20,7 +20,7 @@ export default function CardScreen({ cardData, onBack }) {
 
       // কাস্টম কটলিন নেটিভ মডিউল কল করা
       const savedUri = await GalleryModule.saveImageToGallery(uri);
-      
+
       if (savedUri) {
         Alert.alert('সফল!', 'স্মার্ট কার্ডটি সফলভাবে আপনার গ্যালারিতে সংরক্ষিত হয়েছে!');
       } else {
@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
   container: { flexGrow: 1, padding: 15, backgroundColor: '#f8f9fa', alignItems: 'center', paddingTop: 40 },
   mainTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 20, textAlign: 'center', color: '#1A365D' },
   errorText: { fontSize: 16, color: 'red', marginBottom: 20 },
-  
+
   /* প্রফেশনাল আইডি কার্ড প্রিভিউ স্টাইল ও ওয়াটারমার্ক */
   cardContainer: { width: '100%', backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: '#1A365D', borderRadius: 10, padding: 14, marginTop: 15, marginBottom: 20, elevation: 5, position: 'relative', overflow: 'hidden' },
   watermarkContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 0 },
