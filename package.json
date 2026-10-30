@@ -25,7 +25,8 @@
     "react-native-screens": "~4.30.0",
     "react-native-svg": "15.16.0",
     "react-native-view-shot": "^6.2.1",
-    "react-native-vision-camera": "^5.2.4"
+    "react-native-vision-camera": "^5.2.4",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@babel/core": "^7.25.0"
@@ -34,4 +35,3 @@
     "negotiator@^1.0.0": "1.0.0"
   }
 }
-
