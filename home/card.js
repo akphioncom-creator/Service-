@@ -1,34 +1,34 @@
 import React, { useRef } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Image, Alert, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Image, Alert, ScrollView, NativeModules } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { captureRef } from 'react-native-view-shot';
-import * as MediaLibrary from 'expo-media-library';
+
+// কাস্টম নেটিভ গ্যালারি মডিউল ইমপোর্ট করা
+const { GalleryModule } = NativeModules;
 
 export default function CardScreen({ cardData, onBack }) {
   const cardRef = useRef();
 
-  // গ্যালারিতে কার্ড সেভ করার ফাংশন
+  // কাস্টম নেটিভ মডিউল ব্যবহার করে গ্যালারিতে কার্ড সেভ করার ফাংশন
   const saveCardToGallery = async () => {
     try {
-      // পারমিশন নেওয়া
-      const permission = await MediaLibrary.requestPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert('অনুমতি প্রয়োজন', 'গ্যালারিতে ছবি সেভ করার জন্য অনুমতি দিতে হবে!');
-        return;
-      }
-
       // কার্ডটি ইমেজ হিসেবে ক্যাপচার করা
       const uri = await captureRef(cardRef, {
         format: 'png',
         quality: 1.0,
       });
 
-      // গ্যালারিতে সেভ করা
-      await MediaLibrary.createAssetAsync(uri);
-      Alert.alert('সফল!', 'স্মার্ট কার্ডটি সফলভাবে আপনার গ্যালারিতে সংরক্ষিত হয়েছে!');
+      // কাস্টম কটলিন নেটিভ মডিউল কল করা
+      const savedUri = await GalleryModule.saveImageToGallery(uri);
+      
+      if (savedUri) {
+        Alert.alert('সফল!', 'স্মার্ট কার্ডটি সফলভাবে আপনার গ্যালারিতে সংরক্ষিত হয়েছে!');
+      } else {
+        Alert.alert('ত্রুটি', 'কার্ডটি গ্যালারিতে সেভ করা সম্ভব হয়নি।');
+      }
     } catch (error) {
       console.error('Save error:', error);
-      Alert.alert('ত্রুটি', 'কার্ডটি গ্যালারিতে সেভ করা সম্ভব হয়নি।');
+      Alert.alert('ত্রুটি', 'কার্ডটি সেভ করার সময় একটি সমস্যা হয়েছে।');
     }
   };
 
