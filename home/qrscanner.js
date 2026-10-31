@@ -54,7 +54,7 @@ export default function QRScannerScreen({ onBack }) {
       {/* ওপরে ব্যাক বাটন এবং টাইটেল হেডার */}
       <View style={styles.headerRow}>
         <TouchableOpacity style={styles.topBackBtn} onPress={onBack}>
-          <Text style={styles.backArrowText}>←</Text>
+          <Text style={styles.backButtonText}>← ফিরে যান</Text>
         </TouchableOpacity>
         <Text style={styles.title}>QR Code Scanner</Text>
       </View>
@@ -100,9 +100,9 @@ export default function QRScannerScreen({ onBack }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, paddingTop: 40, backgroundColor: '#f8f9fa', alignItems: 'center' },
-  headerRow: { flexDirection: 'row', alignItems: 'center', width: '100%', marginBottom: 15 },
-  topBackBtn: { padding: 8, marginRight: 10, backgroundColor: '#e9ecef', borderRadius: 8 },
-  backArrowText: { fontSize: 18, fontWeight: 'bold', color: '#1A365D' },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', width: '100%', marginBottom: 15 },
+  topBackBtn: { paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#6c757d', borderRadius: 6, marginRight: 15 },
+  backButtonText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
   title: { fontSize: 20, fontWeight: 'bold', color: '#1A365D' },
   scannerBox: { width: '100%', height: 280, borderWidth: 2, borderColor: '#007bff', borderRadius: 12, overflow: 'hidden', backgroundColor: '#000', marginBottom: 15, position: 'relative', justifyContent: 'center', alignItems: 'center' },
   cameraView: { width: '100%', height: '100%', position: 'absolute' },
