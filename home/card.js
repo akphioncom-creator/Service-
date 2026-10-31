@@ -1,13 +1,109 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Image, Alert, ScrollView, NativeModules } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { captureRef } from 'react-native-view-shot';
 import Svg, { Path, Circle } from 'react-native-svg';
+import { MMKV } from 'react-native-mmkv';
 
 const { GalleryModule } = NativeModules;
 
+// পারসন লিস্ট ফাইলের সাথে একই স্টোরেজ ও একই কী (key) ব্যবহার করা হয়েছে
+const storage = new MMKV();
+const STORAGE_KEY = 'persistent_numbers_data';
+
+// স্টোরেজ থেকে সব সংরক্ষিত কার্ডের তালিকা পড়ার ফাংশন
+const readAllRecords = () => {
+  try {
+    const data = storage.getString(STORAGE_KEY);
+    if (!data) return [];
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error('Storage read error:', error);
+    return [];
+  }
+};
+
+// এমন একটি ইউনিক সংখ্যা তৈরি করে যা আগের কোনো কার্ডে নেই (১২ ডিজিট)
+const generateUniqueCode = (records) => {
+  const usedCodes = new Set(records.map((r) => String(r.uniqueCode)));
+
+  for (let i = 0; i < 100; i++) {
+    const code = String(Math.floor(100000000000 + Math.random() * 900000000000));
+    if (!usedCodes.has(code)) return code;
+  }
+
+  // খুব বিরল ক্ষেত্রে (১০০ বার মিলে গেলে) সময়-ভিত্তিক সংখ্যা ব্যবহার হবে
+  let fallback = Date.now();
+  while (usedCodes.has(String(fallback))) {
+    fallback += 1;
+  }
+  return String(fallback);
+};
+
+// এই কার্ডের জন্য ইউনিক কোড বের করা:
+// ১) কার্ডের ডেটায় আগে থেকে কোড থাকলে সেটাই ব্যবহার হবে
+// ২) একই এনআইডি-র কার্ড আগে তৈরি হয়ে থাকলে তার কোডই ব্যবহার হবে (যাতে একই কার্ড বারবার খুললে কোড না বদলায়)
+// ৩) কোনোটিই না থাকলে নতুন ইউনিক কোড তৈরি হবে
+const resolveUniqueCode = (cardData) => {
+  if (!cardData) return null;
+  if (cardData.uniqueCode) return String(cardData.uniqueCode);
+
+  const records = readAllRecords();
+
+  if (cardData.nid) {
+    const existing = records.find(
+      (r) => r.uniqueCode && String(r.nid) === String(cardData.nid)
+    );
+    if (existing) return String(existing.uniqueCode);
+  }
+
+  return generateUniqueCode(records);
+};
+
 export default function CardScreen({ cardData, onBack }) {
   const cardRef = useRef();
+
+  // কার্ড খোলার সময় একবারই কোড নির্ধারণ হবে, রি-রেন্ডারে বদলাবে না
+  const [uniqueCode] = useState(() => resolveUniqueCode(cardData));
+
+  // কার্ডের সকল তথ্য + ইউনিক কোড পারসন লিস্টের স্টোরেজে সংরক্ষণ
+  useEffect(() => {
+    if (!cardData || !uniqueCode) return;
+
+    try {
+      const records = readAllRecords();
+
+      const record = {
+        id: uniqueCode,
+        uniqueCode: uniqueCode,
+        name: cardData.name || '',
+        number: cardData.nid || cardData.phone || '',
+        nid: cardData.nid || '',
+        phone: cardData.phone || '',
+        district: cardData.district || '',
+        upazila: cardData.upazila || '',
+        village: cardData.village || '',
+        image: cardData.image || '',
+        createdAt: cardData.createdAt || '',
+      };
+
+      const index = records.findIndex(
+        (r) => String(r.uniqueCode) === String(uniqueCode)
+      );
+
+      if (index >= 0) {
+        // আগে থেকে থাকলে তথ্য আপডেট হবে (ডুপ্লিকেট এন্ট্রি হবে না)
+        records[index] = { ...records[index], ...record };
+      } else {
+        records.push(record);
+      }
+
+      storage.set(STORAGE_KEY, JSON.stringify(records));
+    } catch (error) {
+      console.error('Storage save error:', error);
+    }
+  }, [cardData, uniqueCode]);
 
   const saveCardToGallery = async () => {
     try {
@@ -19,20 +115,20 @@ export default function CardScreen({ cardData, onBack }) {
       const savedUri = await GalleryModule.saveImageToGallery(uri);
 
       if (savedUri) {
-        Alert.alert('সফল!', 'স্মার্ট কার্ডটি সফলভাবে আপনার গ্যালারিতে সংরক্ষিত হয়েছে!');
+        Alert.alert('সফল!', 'স্মার্ট কার্ডটি সফলভাবে আপনার গ্যালারিতে সংরক্ষিত হয়েছে!');
       } else {
-        Alert.alert('ত্রুটি', 'কার্ডটি গ্যালারিতে সেভ করা সম্ভব হয়নি।');
+        Alert.alert('ত্রুটি', 'কার্ডটি গ্যালারিতে সেভ করা সম্ভব হয়নি।');
       }
     } catch (error) {
       console.error('Save error:', error);
-      Alert.alert('ত্রুটি', 'কার্ডটি সেভ করার সময় একটি সমস্যা হয়েছে।');
+      Alert.alert('ত্রুটি', 'কার্ডটি সেভ করার সময় একটি সমস্যা হয়েছে।');
     }
   };
 
   if (!cardData) {
     return (
       <View style={styles.container}>
-        <Text style={styles.errorText}>কোনো কার্ডের ডেটা পাওয়া যায়নি!</Text>
+        <Text style={styles.errorText}>কোনো কার্ডের ডেটা পাওয়া যায়নি!</Text>
         <TouchableOpacity style={styles.btn} onPress={onBack}>
           <Text style={styles.btnText}>ফিরে যান</Text>
         </TouchableOpacity>
@@ -52,11 +148,11 @@ export default function CardScreen({ cardData, onBack }) {
 
       {/* ক্যাপচার করার জন্য মূল কার্ড ভিউ */}
       <View ref={cardRef} collapsable={false} style={styles.cardContainer}>
-        
+
         {/* ব্যাকগ্রাউন্ডে স্পষ্ট কালো ও ছাইরঙা (Black & White/Gray) সিকিউরিটি গ্রাফিক ডিজাইন */}
         <View style={styles.watermarkContainer} pointerEvents="none">
           <Svg height="180" width="300" viewBox="0 0 300 180" style={{ opacity: 0.28 }}>
-            {/* ব্যাকগ্রাউন্ড জিওমেট্রিক ওয়েভ এবং লাইন ডিজাইন (গাঢ় কালো ও ছাই রঙে) */}
+            {/* ব্যাকগ্রাউন্ড জিওমেট্রিক ওয়েভ এবং লাইন ডিজাইন (গাঢ় কালো ও ছাই রঙে) */}
             <Path fill="none" stroke="#222222" strokeWidth="2" d="M0,20 Q75,80 150,20 T300,20" />
             <Path fill="none" stroke="#555555" strokeWidth="1.8" d="M0,50 Q75,110 150,50 T300,50" />
             <Path fill="none" stroke="#222222" strokeWidth="1.5" d="M0,80 Q75,140 150,80 T300,80" />
@@ -98,9 +194,10 @@ export default function CardScreen({ cardData, onBack }) {
             <Text style={styles.fieldValue}>{cardData.createdAt}</Text>
           </View>
 
-          {/* ডান পাশ: বড় কিউআর কোড */}
+          {/* ডান পাশ: বড় কিউআর কোড (ভেতরে ইউনিক সংখ্যা) */}
           <View style={styles.cardRightSection}>
-            <QRCode value={cardData.nid || 'smart-card'} size={105} />
+            <QRCode value={uniqueCode || 'smart-card'} size={105} />
+            <Text style={styles.qrCodeText}>{uniqueCode}</Text>
           </View>
         </View>
       </View>
@@ -139,6 +236,7 @@ const styles = StyleSheet.create({
   fieldLabel: { fontSize: 9, color: '#666', marginTop: 3 },
   fieldValue: { fontSize: 12, fontWeight: 'bold', color: '#000' },
   cardRightSection: { width: '36%', alignItems: 'center', justifyContent: 'center', borderLeftWidth: 1, borderLeftColor: '#eee', paddingLeft: 6 },
+  qrCodeText: { fontSize: 9, color: '#333', marginTop: 4, letterSpacing: 0.5, textAlign: 'center' },
 
   btn: { backgroundColor: '#28a745', paddingVertical: 12, paddingHorizontal: 30, borderRadius: 8, alignItems: 'center', marginTop: 10, width: '100%' },
   saveBtn: { backgroundColor: '#007bff', paddingVertical: 14, paddingHorizontal: 30, borderRadius: 8, alignItems: 'center', width: '100%', marginBottom: 10, elevation: 3 },
