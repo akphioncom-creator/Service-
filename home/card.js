@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Image, Alert, ScrollView, NativeModules } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { captureRef } from 'react-native-view-shot';
-import Svg, { Path, Rect, Circle, Line } from 'react-native-svg';
+import Svg, { Path, Circle } from 'react-native-svg';
 
 const { GalleryModule } = NativeModules;
 
@@ -47,19 +47,19 @@ export default function CardScreen({ cardData, onBack }) {
       {/* ক্যাপচার করার জন্য মূল কার্ড ভিউ */}
       <View ref={cardRef} collapsable={false} style={styles.cardContainer}>
         
-        {/* ব্যাকগ্রাউন্ডে প্রফেশনাল সিকিউরিটি গ্রাফিক ডিজাইন ও প্যাটার্ন */}
+        {/* ব্যাকগ্রাউন্ডে স্পষ্ট কালো ও ছাইরঙা (Black & White/Gray) সিকিউরিটি গ্রাফিক ডিজাইন */}
         <View style={styles.watermarkContainer} pointerEvents="none">
-          <Svg height="180" width="300" viewBox="0 0 300 180" style={{ opacity: 0.15 }}>
-            {/* ব্যাকগ্রাউন্ড জিওমেট্রিক ওয়েভ এবং লাইন ডিজাইন */}
-            <Path fill="none" stroke="#006a4e" strokeWidth="1.5" d="M0,20 Q75,80 150,20 T300,20" />
-            <Path fill="none" stroke="#1A365D" strokeWidth="1.5" d="M0,50 Q75,110 150,50 T300,50" />
-            <Path fill="none" stroke="#006a4e" strokeWidth="1" d="M0,80 Q75,140 150,80 T300,80" />
-            <Path fill="none" stroke="#1A365D" strokeWidth="1" d="M0,110 Q75,170 150,110 T300,110" />
-            <Path fill="none" stroke="#006a4e" strokeWidth="1.5" d="M0,140 Q75,200 150,140 T300,140" />
+          <Svg height="180" width="300" viewBox="0 0 300 180" style={{ opacity: 0.28 }}>
+            {/* ব্যাকগ্রাউন্ড জিওমেট্রিক ওয়েভ এবং লাইন ডিজাইন (গাঢ় কালো ও ছাই রঙে) */}
+            <Path fill="none" stroke="#222222" strokeWidth="2" d="M0,20 Q75,80 150,20 T300,20" />
+            <Path fill="none" stroke="#555555" strokeWidth="1.8" d="M0,50 Q75,110 150,50 T300,50" />
+            <Path fill="none" stroke="#222222" strokeWidth="1.5" d="M0,80 Q75,140 150,80 T300,80" />
+            <Path fill="none" stroke="#555555" strokeWidth="1.5" d="M0,110 Q75,170 150,110 T300,110" />
+            <Path fill="none" stroke="#222222" strokeWidth="2" d="M0,140 Q75,200 150,140 T300,140" />
 
             {/* সাইড সিকিউরিটি সার্কেল ও ডেকোরেটিভ এলিমেন্ট */}
-            <Circle cx="150" cy="90" r="60" stroke="#006a4e" strokeWidth="1" strokeDasharray="4,4" fill="none" />
-            <Circle cx="150" cy="90" r="45" stroke="#1A365D" strokeWidth="1" fill="none" />
+            <Circle cx="150" cy="90" r="65" stroke="#222222" strokeWidth="1.2" strokeDasharray="5,5" fill="none" />
+            <Circle cx="150" cy="90" r="50" stroke="#555555" strokeWidth="1.2" fill="none" />
           </Svg>
         </View>
 
