@@ -2,24 +2,20 @@ import React, { useRef } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Image, Alert, ScrollView, NativeModules } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { captureRef } from 'react-native-view-shot';
-import Svg, { Path, Circle } from 'react-native-svg'; // এসভিজি ব্যবহারের জন্য ইমপোর্ট করা হলো
+import Svg, { Path, Circle } from 'react-native-svg';
 
-// কাস্টম নেটিভ গ্যালারি মডিউল ইমপোর্ট করা
 const { GalleryModule } = NativeModules;
 
 export default function CardScreen({ cardData, onBack }) {
   const cardRef = useRef();
 
-  // কাস্টম নেটিভ মডিউল ব্যবহার করে গ্যালারিতে কার্ড সেভ করার ফাংশন
   const saveCardToGallery = async () => {
     try {
-      // কার্ডটি ইমেজ হিসেবে ক্যাপচার করা
       const uri = await captureRef(cardRef, {
         format: 'png',
         quality: 1.0,
       });
 
-      // কাস্টম কটলিন নেটিভ মডিউল কল করা
       const savedUri = await GalleryModule.saveImageToGallery(uri);
 
       if (savedUri) {
@@ -51,32 +47,38 @@ export default function CardScreen({ cardData, onBack }) {
       {/* ক্যাপচার করার জন্য মূল কার্ড ভিউ */}
       <View ref={cardRef} collapsable={false} style={styles.cardContainer}>
         
-        {/* ব্যাকগ্রাউন্ডে অফিশিয়াল লোগো ওয়াটারমার্ক (SVG ফরম্যাটে নিখুঁত রেন্ডারিং) */}
+        {/* ব্যাকগ্রাউন্ডে আপনার দেওয়া মূল লোগো ওয়াটারমার্ক (SVG ফরম্যাটে নিখুঁত রূপ) */}
         <View style={styles.watermarkContainer} pointerEvents="none">
-          <Svg height="160" width="160" viewBox="0 0 200 200" style={{ opacity: 0.12 }}>
-            {/* Outer Green Circle */}
-            <Circle cx="100" cy="100" r="90" stroke="#006a4e" strokeWidth="3" fill="none" />
+          <Svg height="170" width="170" viewBox="0 0 200 200" style={{ opacity: 0.12 }}>
+            {/* ১. বাইরের গোল বৃত্ত */}
+            <Circle cx="100" cy="100" r="92" stroke="#006a4e" strokeWidth="3.5" fill="none" />
+            <Circle cx="100" cy="100" r="88" stroke="#006a4e" strokeWidth="1" fill="none" />
 
-            {/* Inner Water Waves */}
-            <Path fill="#006a4e" d="M50,140 Q75,130 100,140 Q125,150 150,140 Q150,155 100,165 Q50,155 50,140 Z" />
-            <Path fill="#006a4e" d="M55,148 Q75,140 100,148 Q125,156 145,148 Q145,160 100,170 Q55,160 55,148 Z" />
+            {/* ২. নিচের পানির ঢেউ (Wave lines) */}
+            <Path fill="#006a4e" d="M42,142 Q70,132 100,142 Q130,152 158,142 Q158,154 100,166 Q42,154 42,142 Z" />
+            <Path fill="#006a4e" d="M48,150 Q74,142 100,150 Q126,158 152,150 Q152,162 100,172 Q48,162 48,150 Z" />
 
-            {/* Central Water Lily / Shapla Petals */}
-            <Path fill="none" stroke="#006a4e" strokeWidth="2" d="M100,60 L105,115 L100,135 L95,115 Z" />
-            <Path fill="none" stroke="#006a4e" strokeWidth="1.5" d="M100,75 L125,95 L115,120 L100,125 Z" />
-            <Path fill="none" stroke="#006a4e" strokeWidth="1.5" d="M100,75 L75,95 L85,120 L100,125 Z" />
-            <Path fill="none" stroke="#006a4e" strokeWidth="1.2" d="M100,85 L145,105 L130,125 L100,130 Z" />
-            <Path fill="none" stroke="#006a4e" strokeWidth="1.2" d="M100,85 L55,105 L70,125 L100,130 Z" />
+            {/* ৩. শাপলা ফুল (মাঝের পাপড়ি ও চারপাশের পাপড়িসমূহ) */}
+            <Path fill="none" stroke="#006a4e" strokeWidth="2.5" d="M100,50 L103,115 L100,142 L97,115 Z" />
+            <Path fill="none" stroke="#006a4e" strokeWidth="1.8" d="M100,68 L126,92 L116,124 L100,132 Z" />
+            <Path fill="none" stroke="#006a4e" strokeWidth="1.8" d="M100,68 L74,92 L84,124 L100,132 Z" />
+            <Path fill="none" stroke="#006a4e" strokeWidth="1.5" d="M100,82 L150,102 L136,128 L100,135 Z" />
+            <Path fill="none" stroke="#006a4e" strokeWidth="1.5" d="M100,82 L50,102 L64,128 L100,135 Z" />
 
-            {/* Paddy Sheaves (Wreath) */}
-            <Path fill="#006a4e" stroke="#006a4e" strokeWidth="2" d="M40,120 Q30,90 45,60 Q50,50 60,40" />
-            <Path fill="#006a4e" stroke="#006a4e" strokeWidth="2" d="M160,120 Q170,90 155,60 Q150,50 140,40" />
+            {/* ৪. দুই পাশের ধানের শীষের মালা (Wreath) */}
+            <Path fill="none" stroke="#006a4e" strokeWidth="2" d="M35,125 Q22,85 45,52" />
+            <Path fill="none" stroke="#006a4e" strokeWidth="2" d="M165,125 Q178,85 155,52" />
 
-            {/* Top Stars */}
-            <Path fill="#006a4e" d="M70,45 L72,50 L77,50 L73,53 L75,58 L70,55 L65,58 L67,53 L63,50 L68,50 Z" />
-            <Path fill="#006a4e" d="M90,38 L92,43 L97,43 L93,46 L95,51 L90,48 L85,51 L87,46 L83,43 L88,43 Z" />
-            <Path fill="#006a4e" d="M110,38 L112,43 L117,43 L113,46 L115,51 L110,48 L105,51 L107,46 L103,43 L108,43 Z" />
-            <Path fill="#006a4e" d="M130,45 L132,50 L137,50 L133,53 L135,58 L130,55 L125,58 L127,53 L123,50 L128,50 Z" />
+            {/* ৫. উপরে পাটপাতা ও ৪টি তারকা */}
+            {/* পাটপাতা */}
+            <Path fill="#006a4e" d="M100,22 Q95,32 100,42 Q105,32 100,22 Z" />
+            <Path fill="none" stroke="#006a4e" strokeWidth="1.2" d="M100,25 Q90,20 84,28 M100,25 Q110,20 116,28 M100,31 Q92,27 88,34 M100,31 Q108,27 112,34" />
+
+            {/* ৪টি তারকা */}
+            <Path fill="#006a4e" d="M68,46 L70,51 L75,51 L71,54 L73,59 L68,56 L63,59 L65,54 L61,51 L66,51 Z" />
+            <Path fill="#006a4e" d="M86,39 L88,44 L93,44 L89,47 L91,52 L86,49 L81,52 L83,47 L79,44 L84,44 Z" />
+            <Path fill="#006a4e" d="M114,39 L116,44 L121,44 L117,47 L119,52 L114,49 L109,52 L111,47 L107,44 L112,44 Z" />
+            <Path fill="#006a4e" d="M132,46 L134,51 L139,51 L135,54 L137,59 L132,56 L127,59 L129,54 L125,51 L130,51 Z" />
           </Svg>
         </View>
 
