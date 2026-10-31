@@ -3,18 +3,17 @@ import { StyleSheet, Text, View, TouchableOpacity, Image, Alert, ScrollView, Nat
 import QRCode from 'react-native-qrcode-svg';
 import { captureRef } from 'react-native-view-shot';
 import Svg, { Path, Circle } from 'react-native-svg';
-import { MMKV } from 'react-native-mmkv';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { GalleryModule } = NativeModules;
 
-// পারসন লিস্ট ফাইলের সাথে একই স্টোরেজ ও একই কী (key) ব্যবহার করা হয়েছে
-const storage = new MMKV();
+// পারসন লিস্ট ফাইলের সাথে একই স্টোরেজ কী (key) ব্যবহার করা হয়েছে
 const STORAGE_KEY = 'persistent_numbers_data';
 
 // স্টোরেজ থেকে সব সংরক্ষিত কার্ডের তালিকা পড়ার ফাংশন
-const readAllRecords = () => {
+const readAllRecords = async () => {
   try {
-    const data = storage.getString(STORAGE_KEY);
+    const data = await AsyncStorage.getItem(STORAGE_KEY);
     if (!data) return [];
     const parsed = JSON.parse(data);
     return Array.isArray(parsed) ? parsed : [];
@@ -45,11 +44,8 @@ const generateUniqueCode = (records) => {
 // ১) কার্ডের ডেটায় আগে থেকে কোড থাকলে সেটাই ব্যবহার হবে
 // ২) একই এনআইডি-র কার্ড আগে তৈরি হয়ে থাকলে তার কোডই ব্যবহার হবে (যাতে একই কার্ড বারবার খুললে কোড না বদলায়)
 // ৩) কোনোটিই না থাকলে নতুন ইউনিক কোড তৈরি হবে
-const resolveUniqueCode = (cardData) => {
-  if (!cardData) return null;
+const resolveUniqueCode = (cardData, records) => {
   if (cardData.uniqueCode) return String(cardData.uniqueCode);
-
-  const records = readAllRecords();
 
   if (cardData.nid) {
     const existing = records.find(
@@ -63,49 +59,72 @@ const resolveUniqueCode = (cardData) => {
 
 export default function CardScreen({ cardData, onBack }) {
   const cardRef = useRef();
+  const initDoneRef = useRef(false);
+  const isMountedRef = useRef(true);
 
-  // কার্ড খোলার সময় একবারই কোড নির্ধারণ হবে, রি-রেন্ডারে বদলাবে না
-  const [uniqueCode] = useState(() => resolveUniqueCode(cardData));
+  // স্টোরেজ থেকে পড়া অ্যাসিঙ্ক্রোনাস, তাই কোড তৈরি হওয়ার আগ পর্যন্ত এটি null থাকবে
+  const [uniqueCode, setUniqueCode] = useState(null);
 
-  // কার্ডের সকল তথ্য + ইউনিক কোড পারসন লিস্টের স্টোরেজে সংরক্ষণ
   useEffect(() => {
-    if (!cardData || !uniqueCode) return;
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
-    try {
-      const records = readAllRecords();
+  // কার্ড খোলার সময় একবারই কোড নির্ধারণ হবে এবং কার্ডের সকল তথ্য + ইউনিক কোড পারসন লিস্টের স্টোরেজে সংরক্ষণ হবে
+  useEffect(() => {
+    if (!cardData || initDoneRef.current) return;
+    initDoneRef.current = true;
 
-      const record = {
-        id: uniqueCode,
-        uniqueCode: uniqueCode,
-        name: cardData.name || '',
-        number: cardData.nid || cardData.phone || '',
-        nid: cardData.nid || '',
-        phone: cardData.phone || '',
-        district: cardData.district || '',
-        upazila: cardData.upazila || '',
-        village: cardData.village || '',
-        image: cardData.image || '',
-        createdAt: cardData.createdAt || '',
-      };
+    const initCard = async () => {
+      try {
+        const records = await readAllRecords();
+        const code = resolveUniqueCode(cardData, records);
 
-      const index = records.findIndex(
-        (r) => String(r.uniqueCode) === String(uniqueCode)
-      );
+        const record = {
+          id: code,
+          uniqueCode: code,
+          name: cardData.name || '',
+          number: cardData.nid || cardData.phone || '',
+          nid: cardData.nid || '',
+          phone: cardData.phone || '',
+          district: cardData.district || '',
+          upazila: cardData.upazila || '',
+          village: cardData.village || '',
+          image: cardData.image || '',
+          createdAt: cardData.createdAt || '',
+        };
 
-      if (index >= 0) {
-        // আগে থেকে থাকলে তথ্য আপডেট হবে (ডুপ্লিকেট এন্ট্রি হবে না)
-        records[index] = { ...records[index], ...record };
-      } else {
-        records.push(record);
+        const index = records.findIndex(
+          (r) => String(r.uniqueCode) === String(code)
+        );
+
+        if (index >= 0) {
+          // আগে থেকে থাকলে তথ্য আপডেট হবে (ডুপ্লিকেট এন্ট্রি হবে না)
+          records[index] = { ...records[index], ...record };
+        } else {
+          records.push(record);
+        }
+
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+
+        if (isMountedRef.current) setUniqueCode(code);
+      } catch (error) {
+        console.error('Storage save error:', error);
+        Alert.alert('ত্রুটি', 'কার্ডের তথ্য সংরক্ষণ করার সময় একটি সমস্যা হয়েছে।');
       }
+    };
 
-      storage.set(STORAGE_KEY, JSON.stringify(records));
-    } catch (error) {
-      console.error('Storage save error:', error);
-    }
-  }, [cardData, uniqueCode]);
+    initCard();
+  }, [cardData]);
 
   const saveCardToGallery = async () => {
+    if (!uniqueCode) {
+      Alert.alert('অপেক্ষা করুন', 'কার্ডের কিউআর কোড তৈরি হচ্ছে, একটু পরে আবার চেষ্টা করুন।');
+      return;
+    }
+
     try {
       const uri = await captureRef(cardRef, {
         format: 'png',
@@ -196,14 +215,26 @@ export default function CardScreen({ cardData, onBack }) {
 
           {/* ডান পাশ: বড় কিউআর কোড (ভেতরে ইউনিক সংখ্যা) */}
           <View style={styles.cardRightSection}>
-            <QRCode value={uniqueCode || 'smart-card'} size={105} />
-            <Text style={styles.qrCodeText}>{uniqueCode}</Text>
+            {uniqueCode ? (
+              <>
+                <QRCode value={uniqueCode} size={105} />
+                <Text style={styles.qrCodeText}>{uniqueCode}</Text>
+              </>
+            ) : (
+              <View style={styles.qrPlaceholder}>
+                <Text style={styles.qrPlaceholderText}>...</Text>
+              </View>
+            )}
           </View>
         </View>
       </View>
 
       {/* গ্যালারিতে সেভ করার বাটন (downloadicon.xml সহ) */}
-      <TouchableOpacity style={styles.saveBtn} onPress={saveCardToGallery}>
+      <TouchableOpacity
+        style={[styles.saveBtn, !uniqueCode && { opacity: 0.6 }]}
+        onPress={saveCardToGallery}
+        disabled={!uniqueCode}
+      >
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Image source={{ uri: 'downloadicon' }} style={styles.btnIconStyle} />
           <Text style={styles.btnText}>গ্যালারিতে সেভ করুন</Text>
@@ -237,6 +268,8 @@ const styles = StyleSheet.create({
   fieldValue: { fontSize: 12, fontWeight: 'bold', color: '#000' },
   cardRightSection: { width: '36%', alignItems: 'center', justifyContent: 'center', borderLeftWidth: 1, borderLeftColor: '#eee', paddingLeft: 6 },
   qrCodeText: { fontSize: 9, color: '#333', marginTop: 4, letterSpacing: 0.5, textAlign: 'center' },
+  qrPlaceholder: { width: 105, height: 105, alignItems: 'center', justifyContent: 'center' },
+  qrPlaceholderText: { fontSize: 18, color: '#999' },
 
   btn: { backgroundColor: '#28a745', paddingVertical: 12, paddingHorizontal: 30, borderRadius: 8, alignItems: 'center', marginTop: 10, width: '100%' },
   saveBtn: { backgroundColor: '#007bff', paddingVertical: 14, paddingHorizontal: 30, borderRadius: 8, alignItems: 'center', width: '100%', marginBottom: 10, elevation: 3 },
