@@ -8,7 +8,6 @@ export default function QRScannerScreen({ onBack }) {
   const [scannedData, setScannedData] = useState('স্ক্যান করার জন্য ক্যামেরা নির্দেশ করুন...');
   const [selectedImage, setSelectedImage] = useState(null);
 
-  // ক্যামেরা পারমিশন নেওয়া
   useEffect(() => {
     (async () => {
       const { status } = await Camera.requestCameraPermissionsAsync();
@@ -16,12 +15,10 @@ export default function QRScannerScreen({ onBack }) {
     })();
   }, []);
 
-  // ক্যামেরা দ্বারা কিউআর কোড স্ক্যান হ্যান্ডলার
   const handleBarCodeScanned = ({ type, data }) => {
     setScannedData(`সফলভাবে স্ক্যান হয়েছে!\nতথ্য: ${data}`);
   };
 
-  // গ্যালারি থেকে ছবি পিক এবং ক্রপ করার ব্যবস্থা
   const pickImageFromGallery = async () => {
     try {
       let result = await ImagePicker.launchImageLibraryAsync({
@@ -51,10 +48,13 @@ export default function QRScannerScreen({ onBack }) {
 
   return (
     <View style={styles.container}>
-      {/* ওপরে ব্যাক বাটন এবং টাইটেল হেডার */}
+      {/* হেডার: back_icon.xml রিসোর্স ব্যবহার করে ব্যাক বাটন */}
       <View style={styles.headerRow}>
         <TouchableOpacity style={styles.topBackBtn} onPress={onBack}>
-          <Text style={styles.backButtonText}>← ফিরে যান</Text>
+          <Image 
+            source={{ uri: 'back_icon' }} 
+            style={styles.iconStyle} 
+          />
         </TouchableOpacity>
         <Text style={styles.title}>QR Code Scanner</Text>
       </View>
@@ -83,9 +83,13 @@ export default function QRScannerScreen({ onBack }) {
 
       <Text style={styles.resultText}>{scannedData}</Text>
 
-      {/* গ্যালারি থেকে ছবি যুক্ত করার বাটন */}
+      {/* add_photo.xml রিসোর্স ব্যবহার করে গ্যালারি থেকে ছবি যুক্ত করার অপশন */}
       <TouchableOpacity style={styles.photoUploadBtn} onPress={pickImageFromGallery}>
-        <Text style={styles.btnText}>📁 গ্যালারি থেকে ছবি যুক্ত করুন</Text>
+        <Image 
+          source={{ uri: 'add_photo' }} 
+          style={styles.btnIconStyle} 
+        />
+        <Text style={styles.btnText}>গ্যালারি থেকে ছবি যুক্ত করুন</Text>
       </TouchableOpacity>
 
       {/* যদি গ্যালারি ইমেজ সিলেক্ট করা থাকে, তবে পুনরায় ক্যামেরা মোডে ফেরার বাটন */}
@@ -101,8 +105,8 @@ export default function QRScannerScreen({ onBack }) {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, paddingTop: 40, backgroundColor: '#f8f9fa', alignItems: 'center' },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', width: '100%', marginBottom: 15 },
-  topBackBtn: { paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#6c757d', borderRadius: 6, marginRight: 15 },
-  backButtonText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
+  topBackBtn: { padding: 6, backgroundColor: '#e9ecef', borderRadius: 6, marginRight: 15, justifyContent: 'center', alignItems: 'center' },
+  iconStyle: { width: 22, height: 22, tintColor: '#1A365D' },
   title: { fontSize: 20, fontWeight: 'bold', color: '#1A365D' },
   scannerBox: { width: '100%', height: 280, borderWidth: 2, borderColor: '#007bff', borderRadius: 12, overflow: 'hidden', backgroundColor: '#000', marginBottom: 15, position: 'relative', justifyContent: 'center', alignItems: 'center' },
   cameraView: { width: '100%', height: '100%', position: 'absolute' },
@@ -111,7 +115,8 @@ const styles = StyleSheet.create({
   scanTargetBox: { width: 160, height: 160, borderWidth: 2, borderColor: 'rgba(0, 255, 0, 0.7)', borderRadius: 10, backgroundColor: 'transparent', marginBottom: 10 },
   scannerText: { fontSize: 13, color: '#fff', backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 4 },
   resultText: { fontSize: 14, fontWeight: 'bold', color: '#28a745', textAlign: 'center', marginBottom: 15, paddingHorizontal: 10 },
-  photoUploadBtn: { backgroundColor: '#17a2b8', paddingVertical: 12, paddingHorizontal: 25, borderRadius: 8, width: '100%', alignItems: 'center', marginBottom: 10, elevation: 2 },
+  photoUploadBtn: { flexDirection: 'row', backgroundColor: '#17a2b8', paddingVertical: 12, paddingHorizontal: 25, borderRadius: 8, width: '100%', justifyContent: 'center', alignItems: 'center', marginBottom: 10, elevation: 2 },
+  btnIconStyle: { width: 20, height: 20, marginRight: 8, tintColor: '#fff' },
   cameraSwitchBtn: { backgroundColor: '#ffc107', paddingVertical: 12, paddingHorizontal: 25, borderRadius: 8, width: '100%', alignItems: 'center', marginBottom: 10, elevation: 2 },
   errorText: { fontSize: 16, color: 'red' },
   btnText: { color: '#fff', fontSize: 15, fontWeight: 'bold' }
