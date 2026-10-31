@@ -19,14 +19,13 @@ export default function App() {
   const [selectedCardData, setSelectedCardData] = useState(null); 
   const [insets, setInsets] = useState({ top: 0, bottom: 0, left: 0, right: 0 });
 
-  // বায়োমেট্রিক বা ডিভাইস লক ভেরিফিকেশন ফাংশন
+  // বায়োমেট্রিক বা ডিভাইস লক ভেরিফিকেশন ফাংশন (লক বাতিল বা ক্রস করলে বর্তমান স্ক্রিনেই রাখবে)
   const authenticateUser = async (onSuccess) => {
     try {
       const hasHardware = await LocalAuthentication.hasHardwareAsync();
       const isEnrolled = await LocalAuthentication.isEnrolledAsync();
 
       if (!hasHardware || !isEnrolled) {
-        // যদি ডিভাইসে লক সেট করা না থাকে, তবে সরাসরি এলাও করে দেবে
         onSuccess();
         return;
       }
@@ -35,22 +34,23 @@ export default function App() {
         promptMessage: 'নিরাপত্তার জন্য আপনার ফিঙ্গারপ্রিন্ট বা পিন দিন',
         subTitle: 'Smart Service সিকিউরিটি ভেরিফিকেশন',
         fallbackLabel: 'পিন বা প্যাটার্ন ব্যবহার করুন',
-        cancelLabel: 'বাতিল',
-        disableDeviceFallback: false, // ফিঙ্গারপ্রিন্ট না থাকলে পিন/প্যাটার্ন ফলব্যাক অন রাখা হলো
+        cancelLabel: 'বাতিল', // এখানে ক্রস বা বাতিল করার অপশন রয়েছে
+        disableDeviceFallback: false,
       });
 
+      // যদি সফলভাবে ভেরিফাই হয় তবেই পরবর্তী ধাপে বা স্ক্রিনে যাবে
       if (result.success) {
         onSuccess();
       } else {
-        Alert.alert('ব্যর্থ', 'সিকিউরিটি ভেরিফিকেশন সম্পন্ন হয়নি।');
+        // ইউজার ক্রস বা বাতিল করলে কোনো স্ক্রিন পরিবর্তন হবে না, এখানেই থাকবে
+        console.log('Authentication cancelled or failed by user');
       }
     } catch (error) {
       console.error('Authentication error:', error);
-      Alert.alert('ত্রুটি', 'লক চেক করার সময় একটি সমস্যা হয়েছে।');
     }
   };
 
-  // অ্যাপ প্রথমবার ওপেন হওয়ার সময় (App Launch) সিকিউরিটি লক কল করা
+  // অ্যাপ প্রথমবার ওপেন হওয়ার সময় সিকিউরিটি লক চেক করা
   useEffect(() => {
     authenticateUser(() => {
       console.log('App unlocked successfully on startup');
@@ -76,7 +76,7 @@ export default function App() {
 
   const isDark = theme === 'dark';
 
-  // স্ক্রিন পরিবর্তনের সময় সিকিউরিটি লক চেক করার ফাংশন
+  // স্ক্রিন পরিবর্তনের সময় সিকিউরিটি লক চেক করার ফাংশন (ক্রস করলে স্ক্রিন পরিবর্তন হবে না)
   const handleScreenChange = (targetScreen) => {
     authenticateUser(() => {
       setCurrentScreen(targetScreen);
