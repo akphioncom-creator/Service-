@@ -56,7 +56,13 @@ export default function CreatingCardScreen({ onBack }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>All Registered Smart Cards ({cardsList.length})</Text>
+      {/* হেডার: কাস্টম back_icon এবং টাইটেল */}
+      <View style={styles.headerRow}>
+        <TouchableOpacity style={styles.topBackBtn} onPress={onBack}>
+          <Image source={{ uri: 'back_icon' }} style={styles.iconStyle} />
+        </TouchableOpacity>
+        <Text style={styles.title}>All Registered Cards ({cardsList.length})</Text>
+      </View>
 
       {cardsList.length === 0 ? (
         <View style={styles.emptyContainer}>
@@ -116,32 +122,32 @@ export default function CreatingCardScreen({ onBack }) {
               </View>
             </View>
 
-            {/* প্রতিটি কার্ডের জন্য পৃথক সেভ বাটন */}
+            {/* প্রতিটি কার্ডের জন্য পৃথক সেভ বাটন (add_photo আইকন সহ) */}
             <TouchableOpacity 
               style={styles.saveBtn} 
               onPress={() => saveSingleCardToGallery(item.id)}
             >
-              <Text style={styles.saveBtnText}>📥 এই কার্ডটি গ্যালারিতে সেভ করুন</Text>
+              <Image source={{ uri: 'add_photo' }} style={styles.btnIconStyle} />
+              <Text style={styles.saveBtnText}>এই কার্ডটি গ্যালারিতে সেভ করুন</Text>
             </TouchableOpacity>
           </View>
         ))
       )}
-
-      <TouchableOpacity style={[styles.btn, styles.backBtn]} onPress={onBack}>
-        <Text style={styles.btnText}>ফিরে যান</Text>
-      </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flexGrow: 1, padding: 15, backgroundColor: '#f8f9fa', paddingTop: 30 },
-  title: { fontSize: 20, fontWeight: 'bold', marginBottom: 20, textAlign: 'center', color: '#1A365D' },
+  headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  topBackBtn: { padding: 6, backgroundColor: '#e9ecef', borderRadius: 6, marginRight: 15, justifyContent: 'center', alignItems: 'center' },
+  iconStyle: { width: 22, height: 22, tintColor: '#1A365D' },
+  title: { fontSize: 18, fontWeight: 'bold', color: '#1A365D', flex: 1 },
   emptyContainer: { alignItems: 'center', marginTop: 50 },
   emptyText: { fontSize: 16, color: '#666' },
-  
+
   cardWrapper: { marginBottom: 25 },
-  
+
   /* প্রফেশনাল আইডি কার্ড প্রিভিউ স্টাইল ও ওয়াটারমার্ক */
   cardContainer: { width: '100%', backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: '#1A365D', borderRadius: 10, padding: 12, elevation: 4, position: 'relative', overflow: 'hidden' },
   watermarkContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 0 },
@@ -155,10 +161,7 @@ const styles = StyleSheet.create({
   fieldValue: { fontSize: 11, fontWeight: 'bold', color: '#000' },
   cardRightSection: { width: '36%', alignItems: 'center', justifyContent: 'center', borderLeftWidth: 1, borderLeftColor: '#eee', paddingLeft: 6 },
 
-  saveBtn: { backgroundColor: '#007bff', paddingVertical: 10, borderRadius: 6, alignItems: 'center', marginTop: 8, elevation: 2 },
-  saveBtnText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
-
-  btn: { backgroundColor: '#28a745', paddingVertical: 12, borderRadius: 8, alignItems: 'center', marginTop: 15, marginBottom: 30 },
-  backBtn: { backgroundColor: '#6c757d' },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
+  saveBtn: { flexDirection: 'row', backgroundColor: '#007bff', paddingVertical: 10, borderRadius: 6, justifyContent: 'center', alignItems: 'center', marginTop: 8, elevation: 2 },
+  btnIconStyle: { width: 18, height: 18, marginRight: 8, tintColor: '#fff' },
+  saveBtnText: { color: '#fff', fontSize: 14, fontWeight: 'bold' }
 });
