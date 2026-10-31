@@ -124,7 +124,7 @@ export default function App() {
       {/* ফুটার */}
       <View style={styles.footer}>
         <Text style={[styles.footerText, isDark ? styles.darkSubText : styles.lightSubText]}>
-          &copy; ২০২৬ আমার অ্যাপ্লিকেশন। সর্বস্বত্ব সংরক্ষিত।
+          &copy; Made by Akphion 
         </Text>
       </View>
     </SafeAreaView>
