@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TextInput, FlatList, TouchableOpacity, Image } from 'react-native';
-import { MMKV } from 'react-native-mmkv';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const storage = new MMKV();
 const STORAGE_KEY = 'persistent_numbers_data';
 
 // যেকোনো মানকে নিরাপদে স্ট্রিং-এ রূপান্তর (খালি/undefined হলে ক্র্যাশ এড়াতে)
@@ -14,18 +13,28 @@ export default function PersonListScreen({ onBack }) {
   const [filteredList, setFilteredList] = useState([]);
 
   useEffect(() => {
-    try {
-      const data = storage.getString(STORAGE_KEY);
-      if (data) {
-        const parsed = JSON.parse(data);
-        if (Array.isArray(parsed)) {
-          setDataList(parsed);
-          setFilteredList(parsed);
+    let isActive = true;
+
+    const loadData = async () => {
+      try {
+        const data = await AsyncStorage.getItem(STORAGE_KEY);
+        if (data && isActive) {
+          const parsed = JSON.parse(data);
+          if (Array.isArray(parsed)) {
+            setDataList(parsed);
+            setFilteredList(parsed);
+          }
         }
+      } catch (error) {
+        console.error('Storage read error:', error);
       }
-    } catch (error) {
-      console.error('Storage read error:', error);
-    }
+    };
+
+    loadData();
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   const handleSearch = (text) => {
