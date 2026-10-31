@@ -87,14 +87,14 @@ export default function PersonListScreen({ onBack }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>All Person List ({filteredList.length})</Text>
-
       <TextInput
         style={styles.input}
         placeholder="নাম, নম্বর বা কিউআর কোড দিয়ে সার্চ করুন..."
         value={searchQuery}
         onChangeText={handleSearch}
       />
+
+      <Text style={styles.title}>All Person List ({filteredList.length})</Text>
 
       <FlatList
         data={filteredList}
@@ -153,16 +153,12 @@ export default function PersonListScreen({ onBack }) {
           </View>
         )}
       />
-
-      <TouchableOpacity style={[styles.btn, styles.backBtn]} onPress={onBack}>
-        <Text style={styles.btnText}>ফিরে যান</Text>
-      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: '#f8f9fa', paddingTop: 40 },
+  container: { flex: 1, padding: 20, backgroundColor: '#f8f9fa', paddingTop: 15 },
   title: { fontSize: 20, fontWeight: 'bold', marginBottom: 15, textAlign: 'center', color: '#333' },
   input: { height: 48, borderWidth: 1, borderColor: '#ced4da', borderRadius: 8, paddingHorizontal: 15, backgroundColor: '#fff', fontSize: 16, marginBottom: 15 },
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 12, borderRadius: 8, marginBottom: 8, borderWidth: 1, borderColor: '#e9ecef' },
@@ -175,7 +171,5 @@ const styles = StyleSheet.create({
   codeLabel: { fontSize: 12, color: '#1A365D', marginRight: 6 },
   codeText: { fontSize: 13, fontWeight: 'bold', color: '#1A365D', letterSpacing: 0.5 },
   deleteBtn: { padding: 8, backgroundColor: '#fdecea', borderRadius: 6, marginLeft: 8, justifyContent: 'center', alignItems: 'center' },
-  deleteIconStyle: { width: 22, height: 22, tintColor: '#dc3545' },
-  btn: { backgroundColor: '#6c757d', paddingVertical: 12, borderRadius: 8, alignItems: 'center', marginTop: 10 },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
+  deleteIconStyle: { width: 22, height: 22, tintColor: '#dc3545' }
 });
