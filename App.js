@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, StatusBar, NativeModules, Image } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, StatusBar, NativeModules, Image, Alert } from 'react-native';
+import * as LocalAuthentication from 'expo-local-authentication';
 
 // কাস্টম সেফ এরিয়া নেটিভ মডিউল ইমপোর্ট করা
 const { SafeAreaModule } = NativeModules;
@@ -17,6 +18,44 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState('home'); 
   const [selectedCardData, setSelectedCardData] = useState(null); 
   const [insets, setInsets] = useState({ top: 0, bottom: 0, left: 0, right: 0 });
+
+  // বায়োমেট্রিক বা ডিভাইস লক ভেরিফিকেশন ফাংশন
+  const authenticateUser = async (onSuccess) => {
+    try {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+      if (!hasHardware || !isEnrolled) {
+        // যদি ডিভাইসে লক সেট করা না থাকে, তবে সরাসরি এলাও করে দেবে
+        onSuccess();
+        return;
+      }
+
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'নিরাপত্তার জন্য আপনার ফিঙ্গারপ্রিন্ট বা পিন দিন',
+        subTitle: 'Smart Service সিকিউরিটি ভেরিফিকেশন',
+        fallbackLabel: 'পিন বা প্যাটার্ন ব্যবহার করুন',
+        cancelLabel: 'বাতিল',
+        disableDeviceFallback: false, // ফিঙ্গারপ্রিন্ট না থাকলে পিন/প্যাটার্ন ফলব্যাক অন রাখা হলো
+      });
+
+      if (result.success) {
+        onSuccess();
+      } else {
+        Alert.alert('ব্যর্থ', 'সিকিউরিটি ভেরিফিকেশন সম্পন্ন হয়নি।');
+      }
+    } catch (error) {
+      console.error('Authentication error:', error);
+      Alert.alert('ত্রুটি', 'লক চেক করার সময় একটি সমস্যা হয়েছে।');
+    }
+  };
+
+  // অ্যাপ প্রথমবার ওপেন হওয়ার সময় (App Launch) সিকিউরিটি লক কল করা
+  useEffect(() => {
+    authenticateUser(() => {
+      console.log('App unlocked successfully on startup');
+    });
+  }, []);
 
   // কটলিন নেটিভ মডিউল থেকে স্ট্যাটাস বার ও নেভিগেশনবারের সঠিক মাপ নিয়ে আসা
   useEffect(() => {
@@ -37,46 +76,53 @@ export default function App() {
 
   const isDark = theme === 'dark';
 
+  // স্ক্রিন পরিবর্তনের সময় সিকিউরিটি লক চেক করার ফাংশন
+  const handleScreenChange = (targetScreen) => {
+    authenticateUser(() => {
+      setCurrentScreen(targetScreen);
+    });
+  };
+
   // নেভিগেশনের জন্য স্ক্রিন রেন্ডার করার ফাংশন
   const renderScreen = () => {
     switch (currentScreen) {
       case 'qrscanner':
-        return <QRScannerScreen onBack={() => setCurrentScreen('home')} />;
+        return <QRScannerScreen onBack={() => handleScreenChange('home')} />;
       case 'addnew':
         return (
           <AddNewScreen 
-            onBack={() => setCurrentScreen('home')} 
+            onBack={() => handleScreenChange('home')} 
             onNext={(cardData) => {
               setSelectedCardData(cardData);
-              setCurrentScreen('cardview'); 
+              handleScreenChange('cardview'); 
             }} 
           />
         );
       case 'cardview':
-        return <CardScreen cardData={selectedCardData} onBack={() => setCurrentScreen('home')} />;
+        return <CardScreen cardData={selectedCardData} onBack={() => handleScreenChange('home')} />;
       case 'personlist':
-        return <PersonListScreen onBack={() => setCurrentScreen('home')} />;
+        return <PersonListScreen onBack={() => handleScreenChange('home')} />;
       case 'creatingcard':
-        return <CreatingCardScreen onBack={() => setCurrentScreen('home')} />;
+        return <CreatingCardScreen onBack={() => handleScreenChange('home')} />;
       case 'emailchange':
-        return <EmailChangeScreen onBack={() => setCurrentScreen('home')} />;
+        return <EmailChangeScreen onBack={() => handleScreenChange('home')} />;
       default:
         return (
           <View style={styles.dashboardGrid}>
-            {/* অপশন ১: QR code scanner (ic_camera আইকন সহ) */}
+            {/* অপশন ১: QR code scanner */}
             <TouchableOpacity 
               style={[styles.dashboardCard, isDark ? styles.darkCard : styles.lightCard]} 
-              onPress={() => setCurrentScreen('qrscanner')}
+              onPress={() => handleScreenChange('qrscanner')}
             >
               <Image source={{ uri: 'ic_camera' }} style={[styles.cardIconImage, { tintColor: isDark ? '#fff' : '#1A365D' }]} />
               <Text style={[styles.cardTitle, isDark ? styles.darkText : styles.lightText]}>QR code scanner</Text>
               <Text style={styles.cardDesc}>স্ক্যান করে দ্রুত তথ্য নিশ্চিত করুন</Text>
             </TouchableOpacity>
 
-            {/* অপশন ২: add new person (account_ic আইকন সহ) */}
+            {/* অপশন ২: add new person */}
             <TouchableOpacity 
               style={[styles.dashboardCard, isDark ? styles.darkCard : styles.lightCard]} 
-              onPress={() => setCurrentScreen('addnew')}
+              onPress={() => handleScreenChange('addnew')}
             >
               <Image source={{ uri: 'account_ic' }} style={[styles.cardIconImage, { tintColor: isDark ? '#fff' : '#1A365D' }]} />
               <Text style={[styles.cardTitle, isDark ? styles.darkText : styles.lightText]}>add new person</Text>
@@ -86,7 +132,7 @@ export default function App() {
             {/* অপশন ৩: all person list */}
             <TouchableOpacity 
               style={[styles.dashboardCard, isDark ? styles.darkCard : styles.lightCard]} 
-              onPress={() => setCurrentScreen('personlist')}
+              onPress={() => handleScreenChange('personlist')}
             >
               <Text style={styles.cardIcon}>📋</Text>
               <Text style={[styles.cardTitle, isDark ? styles.darkText : styles.lightText]}>all person list</Text>
@@ -96,7 +142,7 @@ export default function App() {
             {/* অপশন ৪: creating all card */}
             <TouchableOpacity 
               style={[styles.dashboardCard, isDark ? styles.darkCard : styles.lightCard]} 
-              onPress={() => setCurrentScreen('creatingcard')}
+              onPress={() => handleScreenChange('creatingcard')}
             >
               <Image source={{ uri: 'downloadicon' }} style={[styles.cardIconImage, { tintColor: isDark ? '#fff' : '#1A365D' }]} />
               <Text style={[styles.cardTitle, isDark ? styles.darkText : styles.lightText]}>creating all card</Text>
@@ -117,7 +163,7 @@ export default function App() {
 
       {/* উপরে এক লাইন লেখা: Smart Service এবং ব্যাক বাটন */}
       <View style={[styles.upServersBar, isDark ? styles.darkBar : styles.lightBar]}>
-        <TouchableOpacity onPress={() => setCurrentScreen('home')} style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <TouchableOpacity onPress={() => handleScreenChange('home')} style={{ flexDirection: 'row', alignItems: 'center' }}>
           {currentScreen !== 'home' && (
             <Image source={{ uri: 'back_icon' }} style={[styles.headerBackIcon, { tintColor: isDark ? '#fff' : '#1A365D' }]} />
           )}
