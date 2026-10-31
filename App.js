@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, StatusBar } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, StatusBar, NativeModules, Dimensions } from 'react-native';
+
+// কাস্টম সেফ এরিয়া নেটিভ মডিউল ইমপোর্ট করা
+const { SafeAreaModule } = NativeModules;
 
 // screens ফোল্ডার থেকে ফাইলগুলো ইমপোর্ট করা
 import QRScannerScreen from './home/qrscanner';
@@ -7,12 +10,30 @@ import AddNewScreen from './home/addnew';
 import PersonListScreen from './home/personlist';
 import CreatingCardScreen from './home/creatingcard';
 import EmailChangeScreen from './home/emailchange';
-import CardScreen from './home/card'; // নতুন কার্ড স্ক্রিন ইমপোর্ট করা হলো
+import CardScreen from './home/card'; 
 
 export default function App() {
   const [theme, setTheme] = useState('light');
-  const [currentScreen, setCurrentScreen] = useState('home'); // বর্তমান স্ক্রিন ট্র্যাক করার স্টেট
-  const [selectedCardData, setSelectedCardData] = useState(null); // কার্ড ডেটা পাস করার স্টেট
+  const [currentScreen, setCurrentScreen] = useState('home'); 
+  const [selectedCardData, setSelectedCardData] = useState(null); 
+  const [insets, setInsets] = useState({ top: 0, bottom: 0, left: 0, right: 0 });
+
+  // কটলিন নেটিভ মডিউল থেকে স্ট্যাটাস বার ও নেভিগেশনবারের সঠিক মাপ বা ইনসেটস নিয়ে আসা
+  useEffect(() => {
+    async function fetchSafeAreaInsets() {
+      try {
+        if (SafeAreaModule && SafeAreaModule.getInsets) {
+          const nativeInsets = await SafeAreaModule.getInsets();
+          if (nativeInsets) {
+            setInsets(nativeInsets);
+          }
+        }
+      } catch (error) {
+        console.log('SafeAreaModule error:', error);
+      }
+    }
+    fetchSafeAreaInsets();
+  }, []);
 
   const toggleTheme = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
@@ -31,7 +52,7 @@ export default function App() {
             onBack={() => setCurrentScreen('home')} 
             onNext={(cardData) => {
               setSelectedCardData(cardData);
-              setCurrentScreen('cardview'); // ডেটা সহ card স্ক্রিনে নিয়ে যাবে
+              setCurrentScreen('cardview'); 
             }} 
           />
         );
@@ -91,7 +112,11 @@ export default function App() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, isDark ? styles.darkContainer : styles.lightContainer]}>
+    <SafeAreaView style={[
+      styles.container, 
+      isDark ? styles.darkContainer : styles.lightContainer,
+      { paddingTop: insets.top, paddingBottom: insets.bottom }
+    ]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* উপরে এক লাইন লেখা: UP Servers এবং ইমেইল চেঞ্জ বাটন */}
