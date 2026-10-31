@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, FlatList, TouchableOpacity, Image } from 'react-native';
+import { StyleSheet, Text, View, TextInput, FlatList, TouchableOpacity, Image, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY = 'persistent_numbers_data';
@@ -59,6 +59,32 @@ export default function PersonListScreen({ onBack }) {
     setFilteredList(results);
   };
 
+  // স্টোরেজ ও লিস্ট থেকে নির্দিষ্ট ব্যক্তির তথ্য মুছে ফেলার ফাংশন
+  const deleteItem = async (item) => {
+    try {
+      const newDataList = dataList.filter((r) => r !== item);
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newDataList));
+
+      setDataList(newDataList);
+      setFilteredList((prev) => prev.filter((r) => r !== item));
+    } catch (error) {
+      console.error('Delete error:', error);
+      Alert.alert('ত্রুটি', 'তথ্য মুছে ফেলার সময় একটি সমস্যা হয়েছে।');
+    }
+  };
+
+  // ডিলিট করার আগে নিশ্চিতকরণ বার্তা
+  const confirmDelete = (item) => {
+    Alert.alert(
+      'মুছে ফেলুন',
+      `আপনি কি "${safeText(item.name)}" এর তথ্য মুছে ফেলতে চান?`,
+      [
+        { text: 'বাতিল', style: 'cancel' },
+        { text: 'মুছে ফেলুন', style: 'destructive', onPress: () => deleteItem(item) },
+      ]
+    );
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>All Person List ({filteredList.length})</Text>
@@ -115,6 +141,15 @@ export default function PersonListScreen({ onBack }) {
                 </View>
               ) : null}
             </View>
+
+            {/* ডিলিট বাটন (deleteicon.xml) */}
+            <TouchableOpacity
+              style={styles.deleteBtn}
+              onPress={() => confirmDelete(item)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Image source={{ uri: 'deleteicon' }} style={styles.deleteIconStyle} />
+            </TouchableOpacity>
           </View>
         )}
       />
@@ -139,6 +174,8 @@ const styles = StyleSheet.create({
   codeBox: { flexDirection: 'row', alignItems: 'center', marginTop: 4, backgroundColor: '#eef4ff', paddingVertical: 3, paddingHorizontal: 8, borderRadius: 4, alignSelf: 'flex-start' },
   codeLabel: { fontSize: 12, color: '#1A365D', marginRight: 6 },
   codeText: { fontSize: 13, fontWeight: 'bold', color: '#1A365D', letterSpacing: 0.5 },
+  deleteBtn: { padding: 8, backgroundColor: '#fdecea', borderRadius: 6, marginLeft: 8, justifyContent: 'center', alignItems: 'center' },
+  deleteIconStyle: { width: 22, height: 22, tintColor: '#dc3545' },
   btn: { backgroundColor: '#6c757d', paddingVertical: 12, borderRadius: 8, alignItems: 'center', marginTop: 10 },
   btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
 });
