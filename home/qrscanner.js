@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Alert, Image } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Image } from 'react-native';
 import { CameraView, Camera } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 
 export default function QRScannerScreen({ onBack }) {
   const [hasPermission, setHasPermission] = useState(null);
-  const [scanned, setScanned] = useState(false);
   const [scannedData, setScannedData] = useState('স্ক্যান করার জন্য ক্যামেরা নির্দেশ করুন অথবা গ্যালারি থেকে ছবি আপলোড করুন...');
   const [selectedImage, setSelectedImage] = useState(null);
 
@@ -17,13 +16,9 @@ export default function QRScannerScreen({ onBack }) {
     })();
   }, []);
 
-  // ক্যামেরা দ্বারা কিউআর কোড স্ক্যান হ্যান্ডলার
+  // ক্যামেরা দ্বারা কিউআর কোড স্ক্যান হ্যান্ডলার (নোটিফিকেশন পপআপ ছাড়া সরাসরি ডেটা দেখাবে)
   const handleBarCodeScanned = ({ type, data }) => {
-    setScanned(true);
     setScannedData(`সফলভাবে স্ক্যান হয়েছে!\nতথ্য: ${data}`);
-    Alert.alert("স্ক্যান সফল", `QR Code Data:\n${data}`, [
-      { text: "আবার স্ক্যান করুন", onPress: () => setScanned(false) }
-    ]);
   };
 
   // গ্যালারি থেকে ছবি পিক এবং এডিটিং/ক্রপ করার ব্যবস্থা
@@ -40,11 +35,10 @@ export default function QRScannerScreen({ onBack }) {
         const imageUri = result.assets[0].uri;
         setSelectedImage(imageUri);
         setScannedData(`গ্যালারি থেকে ছবি সিলেক্ট করা হয়েছে।\nফাইল পাথ: ${imageUri.substring(imageUri.lastIndexOf('/') + 1)}`);
-        Alert.alert("সফল", "গ্যালারি থেকে ছবি সফলভাবে সিলেক্ট করা হয়েছে!");
       }
     } catch (error) {
       console.error('Gallery error:', error);
-      Alert.alert('ত্রুটি', 'গ্যালারি থেকে ছবি লোড করা সম্ভব হয়নি।');
+      setScannedData('ত্রুটি: গ্যালারি থেকে ছবি লোড করা সম্ভব হয়নি।');
     }
   };
 
@@ -65,7 +59,7 @@ export default function QRScannerScreen({ onBack }) {
           <Image source={{ uri: selectedImage }} style={styles.previewImage} />
         ) : (
           <CameraView
-            onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+            onBarcodeScanned={handleBarCodeScanned}
             barcodeScannerSettings={{
               barcodeTypes: ["qr", "pdf417"],
             }}
@@ -90,14 +84,8 @@ export default function QRScannerScreen({ onBack }) {
 
       {/* যদি গ্যালারি ইমেজ সিলেক্ট করা থাকে, তবে পুনরায় ক্যামেরা মোডে ফেরার বাটন */}
       {selectedImage && (
-        <TouchableOpacity style={styles.cameraSwitchBtn} onPress={() => { setSelectedImage(null); setScanned(false); }}>
+        <TouchableOpacity style={styles.cameraSwitchBtn} onPress={() => { setSelectedImage(null); setScannedData('স্ক্যান করার জন্য ক্যামেরা নির্দেশ করুন...'); }}>
           <Text style={styles.btnText}>📷 ক্যামেরা মোডে ফিরে যান</Text>
-        </TouchableOpacity>
-      )}
-
-      {scanned && !selectedImage && (
-        <TouchableOpacity style={styles.btn} onPress={() => setScanned(false)}>
-          <Text style={styles.btnText}>পুনরায় স্ক্যান করুন</Text>
         </TouchableOpacity>
       )}
 
