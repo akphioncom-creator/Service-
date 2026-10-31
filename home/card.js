@@ -42,7 +42,13 @@ export default function CardScreen({ cardData, onBack }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.mainTitle}>Digital Smart ID Card</Text>
+      {/* হেডার উইথ ব্যাক আইকন (back_icon.xml) */}
+      <View style={styles.headerRow}>
+        <TouchableOpacity style={styles.topBackBtn} onPress={onBack}>
+          <Image source={{ uri: 'back_icon' }} style={styles.headerIconStyle} />
+        </TouchableOpacity>
+        <Text style={styles.mainTitle}>Digital Smart ID Card</Text>
+      </View>
 
       {/* ক্যাপচার করার জন্য মূল কার্ড ভিউ */}
       <View ref={cardRef} collapsable={false} style={styles.cardContainer}>
@@ -99,9 +105,12 @@ export default function CardScreen({ cardData, onBack }) {
         </View>
       </View>
 
-      {/* গ্যালারিতে সেভ করার বাটন */}
+      {/* গ্যালারিতে সেভ করার বাটন (downloadicon.xml সহ) */}
       <TouchableOpacity style={styles.saveBtn} onPress={saveCardToGallery}>
-        <Text style={styles.btnText}>📥 গ্যালারিতে সেভ করুন</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Image source={{ uri: 'downloadicon' }} style={styles.btnIconStyle} />
+          <Text style={styles.btnText}>গ্যালারিতে সেভ করুন</Text>
+        </View>
       </TouchableOpacity>
 
       <TouchableOpacity style={[styles.btn, styles.backBtn]} onPress={onBack}>
@@ -112,12 +121,15 @@ export default function CardScreen({ cardData, onBack }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: 15, backgroundColor: '#f8f9fa', alignItems: 'center', paddingTop: 40 },
-  mainTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 20, textAlign: 'center', color: '#1A365D' },
+  container: { flexGrow: 1, padding: 15, backgroundColor: '#f8f9fa', alignItems: 'center', paddingTop: 30 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', width: '100%', marginBottom: 10 },
+  topBackBtn: { padding: 8, backgroundColor: '#e9ecef', borderRadius: 6, marginRight: 15, justifyContent: 'center', alignItems: 'center' },
+  headerIconStyle: { width: 22, height: 22, tintColor: '#1A365D' },
+  mainTitle: { fontSize: 20, fontWeight: 'bold', color: '#1A365D' },
   errorText: { fontSize: 16, color: 'red', marginBottom: 20 },
 
   /* প্রফেশনাল আইডি কার্ড প্রিভিউ স্টাইল ও গ্রাফিক ডিজাইন ব্যাকগ্রাউন্ড */
-  cardContainer: { width: '100%', backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: '#1A365D', borderRadius: 10, padding: 14, marginTop: 15, marginBottom: 20, elevation: 5, position: 'relative', overflow: 'hidden' },
+  cardContainer: { width: '100%', backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: '#1A365D', borderRadius: 10, padding: 14, marginTop: 10, marginBottom: 20, elevation: 5, position: 'relative', overflow: 'hidden' },
   watermarkContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 0 },
   cardBody: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 1 },
   cardLeftSection: { width: '27%', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#eee', paddingRight: 6 },
@@ -131,5 +143,6 @@ const styles = StyleSheet.create({
   btn: { backgroundColor: '#28a745', paddingVertical: 12, paddingHorizontal: 30, borderRadius: 8, alignItems: 'center', marginTop: 10, width: '100%' },
   saveBtn: { backgroundColor: '#007bff', paddingVertical: 14, paddingHorizontal: 30, borderRadius: 8, alignItems: 'center', width: '100%', marginBottom: 10, elevation: 3 },
   backBtn: { backgroundColor: '#6c757d', marginBottom: 30 },
+  btnIconStyle: { width: 20, height: 20, marginRight: 10, tintColor: '#fff' },
   btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
 });
