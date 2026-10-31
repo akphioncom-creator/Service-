@@ -47,9 +47,9 @@ export default function CardScreen({ cardData, onBack }) {
       {/* ক্যাপচার করার জন্য মূল কার্ড ভিউ */}
       <View ref={cardRef} collapsable={false} style={styles.cardContainer}>
         
-        {/* ব্যাকগ্রাউন্ডে আপনার দেওয়া মূল লোগো ওয়াটারমার্ক (SVG ফরম্যাটে নিখুঁত রূপ) */}
+        {/* ব্যাকগ্রাউন্ডে আপনার দেওয়া মূল লোগো ওয়াটারমার্ক (অপাসিটি বাড়িয়ে স্পষ্ট ও ভাসমান করা হয়েছে) */}
         <View style={styles.watermarkContainer} pointerEvents="none">
-          <Svg height="170" width="170" viewBox="0 0 200 200" style={{ opacity: 0.12 }}>
+          <Svg height="170" width="170" viewBox="0 0 200 200" style={{ opacity: 0.22 }}>
             {/* ১. বাইরের গোল বৃত্ত */}
             <Circle cx="100" cy="100" r="92" stroke="#006a4e" strokeWidth="3.5" fill="none" />
             <Circle cx="100" cy="100" r="88" stroke="#006a4e" strokeWidth="1" fill="none" />
