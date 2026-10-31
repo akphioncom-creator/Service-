@@ -14,7 +14,6 @@ import EmailChangeScreen from './home/emailchange';
 import CardScreen from './home/card'; 
 
 export default function App() {
-  const [theme, setTheme] = useState('light');
   const [currentScreen, setCurrentScreen] = useState('home'); 
   const [selectedCardData, setSelectedCardData] = useState(null); 
   const [insets, setInsets] = useState({ top: 0, bottom: 0, left: 0, right: 0 });
@@ -107,41 +106,41 @@ export default function App() {
           <View style={styles.dashboardGrid}>
             {/* অপশন ১: QR code scanner */}
             <TouchableOpacity 
-              style={[styles.dashboardCard, isDark ? styles.darkCard : styles.lightCard]} 
+              style={[styles.dashboardCard, styles.lightCard]} 
               onPress={() => handleScreenChange('qrscanner')}
             >
-              <Image source={{ uri: 'ic_camera' }} style={[styles.cardIconImage, { tintColor: isDark ? '#fff' : '#1A365D' }]} />
-              <Text style={[styles.cardTitle, isDark ? styles.darkText : styles.lightText]}>QR code scanner</Text>
+              <Image source={{ uri: 'ic_camera' }} style={[styles.cardIconImage, { tintColor: '#1A365D' }]} />
+              <Text style={[styles.cardTitle, styles.lightText]}>QR code scanner</Text>
               <Text style={styles.cardDesc}>স্ক্যান করে দ্রুত তথ্য নিশ্চিত করুন</Text>
             </TouchableOpacity>
 
             {/* অপশন ২: add new person */}
             <TouchableOpacity 
-              style={[styles.dashboardCard, isDark ? styles.darkCard : styles.lightCard]} 
+              style={[styles.dashboardCard, styles.lightCard]} 
               onPress={() => handleScreenChange('addnew')}
             >
-              <Image source={{ uri: 'account_ic' }} style={[styles.cardIconImage, { tintColor: isDark ? '#fff' : '#1A365D' }]} />
-              <Text style={[styles.cardTitle, isDark ? styles.darkText : styles.lightText]}>add new person</Text>
+              <Image source={{ uri: 'account_ic' }} style={[styles.cardIconImage, { tintColor: '#1A365D' }]} />
+              <Text style={[styles.cardTitle, styles.lightText]}>add new person</Text>
               <Text style={styles.cardDesc}>নতুন ব্যক্তি বা ডেটা যুক্ত করুন</Text>
             </TouchableOpacity>
 
             {/* অপশন ৩: all person list */}
             <TouchableOpacity 
-              style={[styles.dashboardCard, isDark ? styles.darkCard : styles.lightCard]} 
+              style={[styles.dashboardCard, styles.lightCard]} 
               onPress={() => handleScreenChange('personlist')}
             >
               <Text style={styles.cardIcon}>📋</Text>
-              <Text style={[styles.cardTitle, isDark ? styles.darkText : styles.lightText]}>all person list</Text>
+              <Text style={[styles.cardTitle, styles.lightText]}>all person list</Text>
               <Text style={styles.cardDesc}>সকল ব্যক্তির তালিকা ও সার্চ করুন</Text>
             </TouchableOpacity>
 
             {/* অপশন ৪: creating all card */}
             <TouchableOpacity 
-              style={[styles.dashboardCard, isDark ? styles.darkCard : styles.lightCard]} 
+              style={[styles.dashboardCard, styles.lightCard]} 
               onPress={() => handleScreenChange('creatingcard')}
             >
-              <Image source={{ uri: 'downloadicon' }} style={[styles.cardIconImage, { tintColor: isDark ? '#fff' : '#1A365D' }]} />
-              <Text style={[styles.cardTitle, isDark ? styles.darkText : styles.lightText]}>creating all card</Text>
+              <Image source={{ uri: 'downloadicon' }} style={[styles.cardIconImage, { tintColor: '#1A365D' }]} />
+              <Text style={[styles.cardTitle, styles.lightText]}>creating all card</Text>
               <Text style={styles.cardDesc}>সবগুলোর জন্য কার্ড তৈরি করুন</Text>
             </TouchableOpacity>
           </View>
@@ -152,18 +151,18 @@ export default function App() {
   return (
     <SafeAreaView style={[
       styles.container, 
-      isDark ? styles.darkContainer : styles.lightContainer,
+      styles.lightContainer,
       { paddingTop: insets.top, paddingBottom: insets.bottom }
     ]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle="dark-content" />
 
       {/* উপরে এক লাইন লেখা: Smart Service এবং ব্যাক বাটন */}
-      <View style={[styles.upServersBar, isDark ? styles.darkBar : styles.lightBar]}>
+      <View style={[styles.upServersBar, styles.lightBar]}>
         <TouchableOpacity onPress={() => handleScreenChange('home')} style={{ flexDirection: 'row', alignItems: 'center' }}>
           {currentScreen !== 'home' && (
-            <Image source={{ uri: 'back_icon' }} style={[styles.headerBackIcon, { tintColor: isDark ? '#fff' : '#1A365D' }]} />
+            <Image source={{ uri: 'back_icon' }} style={[styles.headerBackIcon, { tintColor: '#1A365D' }]} />
           )}
-          <Text style={[styles.barTitle, isDark ? styles.darkText : styles.lightText]}>Smart Service</Text>
+          <Text style={[styles.barTitle, styles.lightText]}>Smart Service</Text>
         </TouchableOpacity>
       </View>
 
@@ -174,7 +173,7 @@ export default function App() {
 
       {/* ফুটার */}
       <View style={styles.footer}>
-        <Text style={[styles.footerText, isDark ? styles.darkSubText : styles.lightSubText]}>
+        <Text style={[styles.footerText, styles.lightSubText]}>
           &copy; Made by Akphion 
         </Text>
       </View>
@@ -189,9 +188,6 @@ const styles = StyleSheet.create({
   lightContainer: {
     backgroundColor: '#f8f9fa',
   },
-  darkContainer: {
-    backgroundColor: '#121212',
-  },
   upServersBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -204,9 +200,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
-  },
-  darkBar: {
-    backgroundColor: '#1e1e2f',
   },
   barTitle: {
     fontSize: 18,
@@ -243,10 +236,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderColor: '#e0e0e0',
   },
-  darkCard: {
-    backgroundColor: '#1e1e1e',
-    borderColor: '#333333',
-  },
   cardIcon: {
     fontSize: 35,
     marginBottom: 10,
@@ -271,14 +260,8 @@ const styles = StyleSheet.create({
   lightText: {
     color: '#333333',
   },
-  darkText: {
-    color: '#ffffff',
-  },
   lightSubText: {
     color: '#888888',
-  },
-  darkSubText: {
-    color: '#aaaaaa',
   },
   footer: {
     padding: 10,
