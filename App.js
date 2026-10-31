@@ -35,10 +35,6 @@ export default function App() {
     fetchSafeAreaInsets();
   }, []);
 
-  const toggleTheme = () => {
-    setTheme(theme === 'light' ? 'dark' : 'light');
-  };
-
   const isDark = theme === 'dark';
 
   // নেভিগেশনের জন্য স্ক্রিন রেন্ডার করার ফাংশন
@@ -119,30 +115,14 @@ export default function App() {
     ]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-      {/* উপরে এক লাইন লেখা: UP Servers এবং ইমেইল চেঞ্জ ও ডার্ক মোড বাটন (darkicon ও account_ic ব্যবহার করে) */}
+      {/* উপরে এক লাইন লেখা: Smart Service এবং ব্যাক বাটন */}
       <View style={[styles.upServersBar, isDark ? styles.darkBar : styles.lightBar]}>
         <TouchableOpacity onPress={() => setCurrentScreen('home')} style={{ flexDirection: 'row', alignItems: 'center' }}>
           {currentScreen !== 'home' && (
             <Image source={{ uri: 'back_icon' }} style={[styles.headerBackIcon, { tintColor: isDark ? '#fff' : '#1A365D' }]} />
           )}
-          <Text style={[styles.barTitle, isDark ? styles.darkText : styles.lightText]}>UP Servers</Text>
+          <Text style={[styles.barTitle, isDark ? styles.darkText : styles.lightText]}>Smart Service</Text>
         </TouchableOpacity>
-
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <TouchableOpacity 
-            style={[styles.themeBtn, { marginRight: 8, backgroundColor: '#17a2b8' }]} 
-            onPress={() => setCurrentScreen('emailchange')}
-          >
-            <Text style={[styles.themeBtnText, { color: '#fff' }]}>✉️ ইমেইল</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.themeBtn, { flexDirection: 'row', alignItems: 'center' }]} onPress={toggleTheme}>
-            <Image source={{ uri: 'darkicon' }} style={[styles.btnIconStyle, { tintColor: isDark ? '#fff' : '#333' }]} />
-            <Text style={styles.themeBtnText}>
-              {theme === 'light' ? ' ডार्क' : ' লাইট'}
-            </Text>
-          </TouchableOpacity>
-        </View>
       </View>
 
       {/* ডায়নামিক স্ক্রিন রেন্ডারিং */}
@@ -194,23 +174,6 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     marginRight: 8,
-  },
-  themeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 6,
-    backgroundColor: '#e9ecef',
-  },
-  btnIconStyle: {
-    width: 14,
-    height: 14,
-    marginRight: 4,
-  },
-  themeBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
   },
   dashboardGrid: {
     flex: 1,
