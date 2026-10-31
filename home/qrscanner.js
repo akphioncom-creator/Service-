@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Image } from 'react-native';
 import { CameraView, Camera } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
-import { Ionicons } from '@expo/vector-icons';
 
 export default function QRScannerScreen({ onBack }) {
   const [hasPermission, setHasPermission] = useState(null);
@@ -55,7 +54,7 @@ export default function QRScannerScreen({ onBack }) {
       {/* ওপরে ব্যাক বাটন এবং টাইটেল হেডার */}
       <View style={styles.headerRow}>
         <TouchableOpacity style={styles.topBackBtn} onPress={onBack}>
-          <Ionicons name="arrow-back" size={24} color="#1A365D" />
+          <Text style={styles.backArrowText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.title}>QR Code Scanner</Text>
       </View>
@@ -84,10 +83,9 @@ export default function QRScannerScreen({ onBack }) {
 
       <Text style={styles.resultText}>{scannedData}</Text>
 
-      {/* গ্যালারি থেকে ছবি যুক্ত করার বাটন (add_photo আইকন সহ) */}
+      {/* গ্যালারি থেকে ছবি যুক্ত করার বাটন */}
       <TouchableOpacity style={styles.photoUploadBtn} onPress={pickImageFromGallery}>
-        <Ionicons name="images-outline" size={22} color="#fff" style={{ marginRight: 8 }} />
-        <Text style={styles.btnText}>গ্যালারি থেকে ছবি যুক্ত করুন</Text>
+        <Text style={styles.btnText}>📁 গ্যালারি থেকে ছবি যুক্ত করুন</Text>
       </TouchableOpacity>
 
       {/* যদি গ্যালারি ইমেজ সিলেক্ট করা থাকে, তবে পুনরায় ক্যামেরা মোডে ফেরার বাটন */}
@@ -103,7 +101,8 @@ export default function QRScannerScreen({ onBack }) {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, paddingTop: 40, backgroundColor: '#f8f9fa', alignItems: 'center' },
   headerRow: { flexDirection: 'row', alignItems: 'center', width: '100%', marginBottom: 15 },
-  topBackBtn: { padding: 5, marginRight: 10 },
+  topBackBtn: { padding: 8, marginRight: 10, backgroundColor: '#e9ecef', borderRadius: 8 },
+  backArrowText: { fontSize: 18, fontWeight: 'bold', color: '#1A365D' },
   title: { fontSize: 20, fontWeight: 'bold', color: '#1A365D' },
   scannerBox: { width: '100%', height: 280, borderWidth: 2, borderColor: '#007bff', borderRadius: 12, overflow: 'hidden', backgroundColor: '#000', marginBottom: 15, position: 'relative', justifyContent: 'center', alignItems: 'center' },
   cameraView: { width: '100%', height: '100%', position: 'absolute' },
@@ -112,7 +111,7 @@ const styles = StyleSheet.create({
   scanTargetBox: { width: 160, height: 160, borderWidth: 2, borderColor: 'rgba(0, 255, 0, 0.7)', borderRadius: 10, backgroundColor: 'transparent', marginBottom: 10 },
   scannerText: { fontSize: 13, color: '#fff', backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 4 },
   resultText: { fontSize: 14, fontWeight: 'bold', color: '#28a745', textAlign: 'center', marginBottom: 15, paddingHorizontal: 10 },
-  photoUploadBtn: { flexDirection: 'row', backgroundColor: '#17a2b8', paddingVertical: 12, paddingHorizontal: 25, borderRadius: 8, width: '100%', justifyContent: 'center', alignItems: 'center', marginBottom: 10, elevation: 2 },
+  photoUploadBtn: { backgroundColor: '#17a2b8', paddingVertical: 12, paddingHorizontal: 25, borderRadius: 8, width: '100%', alignItems: 'center', marginBottom: 10, elevation: 2 },
   cameraSwitchBtn: { backgroundColor: '#ffc107', paddingVertical: 12, paddingHorizontal: 25, borderRadius: 8, width: '100%', alignItems: 'center', marginBottom: 10, elevation: 2 },
   errorText: { fontSize: 16, color: 'red' },
   btnText: { color: '#fff', fontSize: 15, fontWeight: 'bold' }
