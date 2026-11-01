@@ -177,14 +177,8 @@ export default function QRScannerScreen({ onBack }) {
 
   return (
     <ScrollView style={styles.scrollRoot} contentContainerStyle={styles.scrollContent}>
-      {/* হেডার: back_icon.xml রিসোর্স ব্যবহার করে ব্যাক বাটন */}
+      {/* হেডার */}
       <View style={styles.headerRow}>
-        <TouchableOpacity style={styles.topBackBtn} onPress={onBack}>
-          <Image 
-            source={{ uri: 'back_icon' }} 
-            style={styles.iconStyle} 
-          />
-        </TouchableOpacity>
         <Text style={styles.title}>QR Code Scanner</Text>
       </View>
 
@@ -280,8 +274,6 @@ const styles = StyleSheet.create({
   scrollRoot: { flex: 1, backgroundColor: '#f8f9fa' },
   scrollContent: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, backgroundColor: '#f8f9fa', alignItems: 'center' },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', width: '100%', marginBottom: 10 },
-  topBackBtn: { padding: 6, backgroundColor: '#e9ecef', borderRadius: 6, marginRight: 15, justifyContent: 'center', alignItems: 'center' },
-  iconStyle: { width: 22, height: 22, tintColor: '#1A365D' },
   title: { fontSize: 20, fontWeight: 'bold', color: '#1A365D' },
   scannerBox: { width: '100%', height: 280, borderWidth: 2, borderColor: '#007bff', borderRadius: 12, overflow: 'hidden', backgroundColor: '#000', marginBottom: 15, position: 'relative', justifyContent: 'center', alignItems: 'center' },
   scannerBoxCompact: { height: 170, marginBottom: 10 },
