@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, StatusBar, NativeModules, Image } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, StatusBar, NativeModules, Image, BackHandler, Alert } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 
-// কাস্টম সেফ এরিয়া নেটিভ মডিউল ইমপোর্ট করা
+// কাস্টম সেফ এরিয়া নেটিভ মডিউল ইমপোর্ট করা
 const { SafeAreaModule } = NativeModules;
 
 // screens ফোল্ডার থেকে ফাইলগুলো ইমপোর্ট করা
@@ -17,6 +17,9 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState('home'); 
   const [selectedCardData, setSelectedCardData] = useState(null); 
   const [insets, setInsets] = useState({ top: 0, bottom: 0, left: 0, right: 0 });
+
+  // বের হওয়ার কনফার্মেশন বক্স একসাথে একাধিকবার খোলা ঠেকানোর জন্য
+  const exitDialogOpenRef = useRef(false);
 
   // বায়োমেট্রিক বা ডিভাইস লক ভেরিফিকেশন ফাংশন
   const authenticateUser = async (onSuccess) => {
@@ -47,7 +50,7 @@ export default function App() {
     }
   };
 
-  // কটলিন নেটিভ মডিউল থেকে স্ট্যাটাস বার ও নেভিগেশনবারের সঠিক মাপ নিয়ে আসা
+  // কটলিন নেটিভ মডিউল থেকে স্ট্যাটাস বার ও নেভিগেশনবারের সঠিক মাপ নিয়ে আসা
   useEffect(() => {
     async function fetchSafeAreaInsets() {
       try {
@@ -64,15 +67,68 @@ export default function App() {
     fetchSafeAreaInsets();
   }, []);
 
-  // স্ক্রিন পরিবর্তনের সময় সিকিউরিটি লক চেক করার ফাংশন
+  // সিস্টেমের (ফোনের) ব্যাক বাটন নিয়ন্ত্রণ:
+  // - অন্য কোনো স্ক্রিনে থাকলে => মেইন হোমে ফিরে আসবে
+  // - মেইন হোমে থাকলে => বের হওয়ার জন্য কনফার্মেশন নোটিফিকেশন দেখাবে
+  useEffect(() => {
+    const onHardwareBackPress = () => {
+      if (currentScreen !== 'home') {
+        setCurrentScreen('home');
+        return true; // ডিফল্ট ব্যাক (অ্যাপ বন্ধ হওয়া) ঠেকানো হলো
+      }
+
+      // মেইন হোমে আছি: বের হওয়ার আগে কনফার্ম করা
+      if (!exitDialogOpenRef.current) {
+        exitDialogOpenRef.current = true;
+
+        Alert.alert(
+          'অ্যাপ থেকে বের হবেন?',
+          'আপনি কি অ্যাপ্লিকেশন থেকে বের হতে চান?',
+          [
+            {
+              text: 'বাতিল',
+              style: 'cancel',
+              onPress: () => {
+                exitDialogOpenRef.current = false;
+              },
+            },
+            {
+              text: 'ওকে',
+              onPress: () => {
+                exitDialogOpenRef.current = false;
+                BackHandler.exitApp();
+              },
+            },
+          ],
+          {
+            cancelable: true,
+            // বক্সের বাইরে ট্যাপ বা ব্যাক চাপলেও যেন আবার বক্স খোলা যায়
+            onDismiss: () => {
+              exitDialogOpenRef.current = false;
+            },
+          }
+        );
+      }
+
+      return true; // সরাসরি অ্যাপ বন্ধ হওয়া ঠেকানো হলো
+    };
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', onHardwareBackPress);
+
+    return () => {
+      subscription.remove();
+    };
+  }, [currentScreen]);
+
+  // স্ক্রিন পরিবর্তনের সময় সিকিউরিটি লক চেক করার ফাংশন
   const handleScreenChange = (targetScreen) => {
-    // যদি লক্ষ্য করা স্ক্রিনটি 'cardview' অথবা 'qrscanner' হয়, তবে কোনো লক ছাড়াই সরাসরি প্রবেশ করতে দেবে
-    if (targetScreen === 'cardview' || targetScreen === 'qrscanner') {
+    // যদি লক্ষ্য করা স্ক্রিনটি 'home', 'cardview' অথবা 'qrscanner' হয়, তবে কোনো লক ছাড়াই সরাসরি প্রবেশ করতে দেবে
+    if (targetScreen === 'home' || targetScreen === 'cardview' || targetScreen === 'qrscanner') {
       setCurrentScreen(targetScreen);
       return;
     }
 
-    // অন্য নির্দিষ্ট স্ক্রিনগুলোতে যাওয়ার আগে ফিঙ্গারপ্রিন্ট বা সিকিউরিটি লক ভেরিফাই করবে
+    // অন্য নির্দিষ্ট স্ক্রিনগুলোতে যাওয়ার আগে ফিঙ্গারপ্রিন্ট বা সিকিউরিটি লক ভেরিফাই করবে
     authenticateUser(() => {
       setCurrentScreen(targetScreen);
     });
@@ -104,7 +160,7 @@ export default function App() {
       default:
         return (
           <View style={styles.dashboardGrid}>
-            {/* অপশন ১: QR code scanner (কোনো লক ছাড়াই সরাসরি প্রবেশ করবে) */}
+            {/* অপশন ১: QR code scanner (কোনো লক ছাড়াই সরাসরি প্রবেশ করবে) */}
             <TouchableOpacity 
               style={[styles.dashboardCard, styles.lightCard]} 
               onPress={() => handleScreenChange('qrscanner')}
