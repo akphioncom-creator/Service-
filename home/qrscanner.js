@@ -189,7 +189,7 @@ export default function QRScannerScreen({ onBack }) {
       </View>
 
       {/* ক্যামেরা প্রিভিউ অথবা গ্যালারির ছবি প্রিভিউ এরিয়া */}
-      <View style={styles.scannerBox}>
+      <View style={[styles.scannerBox, scanResult && styles.scannerBoxCompact]}>
         {selectedImage ? (
           <Image source={{ uri: selectedImage }} style={styles.previewImage} />
         ) : (
@@ -211,37 +211,39 @@ export default function QRScannerScreen({ onBack }) {
         )}
       </View>
 
-      {/* স্ক্যানের ফলাফল: সবুজ টিক অথবা লাল ক্রস */}
+      {/* স্ক্যানের ফলাফল: সবুজ টিক অথবা লাল ক্রস (ছোট আকারে, যাতে সবকিছু এক স্ক্রিনে থাকে) */}
       {scanResult ? (
         <View style={[styles.resultCard, isSuccess ? styles.resultCardSuccess : styles.resultCardError]}>
           <View style={[styles.statusCircle, isSuccess ? styles.circleSuccess : styles.circleError]}>
             <Text style={styles.statusIcon}>{isSuccess ? '✓' : '✕'}</Text>
           </View>
 
-          <Text style={[styles.resultTitle, isSuccess ? styles.titleSuccess : styles.titleError]}>
-            {resultTitle}
-          </Text>
-          <Text style={styles.resultMessage}>{resultMessage}</Text>
+          <View style={styles.resultInfo}>
+            <Text style={[styles.resultTitle, isSuccess ? styles.titleSuccess : styles.titleError]}>
+              {resultTitle}
+            </Text>
+            <Text style={styles.resultMessage}>{resultMessage}</Text>
 
-          {resultPerson ? (
-            <View style={styles.personBox}>
-              <Text style={styles.personName}>{resultPerson.name}</Text>
-              {resultPerson.nid ? (
-                <Text style={styles.personDetail}>এনআইডি: {resultPerson.nid}</Text>
-              ) : null}
-              {resultPerson.phone ? (
-                <Text style={styles.personDetail}>মোবাইল: {resultPerson.phone}</Text>
-              ) : null}
-              {resultPerson.district || resultPerson.upazila || resultPerson.village ? (
-                <Text style={styles.personDetail}>
-                  {[resultPerson.district, resultPerson.upazila, resultPerson.village ? 'গ্রাম: ' + resultPerson.village : '']
-                    .filter(Boolean)
-                    .join(', ')}
-                </Text>
-              ) : null}
-              <Text style={styles.personCode}>QR কোড: {scanResult.code}</Text>
-            </View>
-          ) : null}
+            {resultPerson ? (
+              <View style={styles.personBox}>
+                <Text style={styles.personName} numberOfLines={1}>{resultPerson.name}</Text>
+                {resultPerson.nid ? (
+                  <Text style={styles.personDetail}>এনআইডি: {resultPerson.nid}</Text>
+                ) : null}
+                {resultPerson.phone ? (
+                  <Text style={styles.personDetail}>মোবাইল: {resultPerson.phone}</Text>
+                ) : null}
+                {resultPerson.district || resultPerson.upazila || resultPerson.village ? (
+                  <Text style={styles.personDetail} numberOfLines={1}>
+                    {[resultPerson.district, resultPerson.upazila, resultPerson.village ? 'গ্রাম: ' + resultPerson.village : '']
+                      .filter(Boolean)
+                      .join(', ')}
+                  </Text>
+                ) : null}
+                <Text style={styles.personCode}>QR কোড: {scanResult.code}</Text>
+              </View>
+            ) : null}
+          </View>
         </View>
       ) : (
         <Text style={styles.resultText}>{scannedData}</Text>
@@ -276,12 +278,13 @@ export default function QRScannerScreen({ onBack }) {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, paddingTop: 40, backgroundColor: '#f8f9fa', alignItems: 'center' },
   scrollRoot: { flex: 1, backgroundColor: '#f8f9fa' },
-  scrollContent: { flexGrow: 1, padding: 20, paddingTop: 40, backgroundColor: '#f8f9fa', alignItems: 'center' },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', width: '100%', marginBottom: 15 },
+  scrollContent: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, backgroundColor: '#f8f9fa', alignItems: 'center' },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', width: '100%', marginBottom: 10 },
   topBackBtn: { padding: 6, backgroundColor: '#e9ecef', borderRadius: 6, marginRight: 15, justifyContent: 'center', alignItems: 'center' },
   iconStyle: { width: 22, height: 22, tintColor: '#1A365D' },
   title: { fontSize: 20, fontWeight: 'bold', color: '#1A365D' },
   scannerBox: { width: '100%', height: 280, borderWidth: 2, borderColor: '#007bff', borderRadius: 12, overflow: 'hidden', backgroundColor: '#000', marginBottom: 15, position: 'relative', justifyContent: 'center', alignItems: 'center' },
+  scannerBoxCompact: { height: 170, marginBottom: 10 },
   cameraView: { width: '100%', height: '100%', position: 'absolute' },
   previewImage: { width: '100%', height: '100%' },
   overlayBox: { flex: 1, width: '100%', justifyContent: 'center', alignItems: 'center', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
@@ -290,26 +293,27 @@ const styles = StyleSheet.create({
   resultText: { fontSize: 14, fontWeight: 'bold', color: '#28a745', textAlign: 'center', marginBottom: 15, paddingHorizontal: 10 },
 
   /* স্ক্যান ফলাফল কার্ড (টিক / ক্রস) */
-  resultCard: { width: '100%', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, borderWidth: 2, paddingVertical: 18, paddingHorizontal: 14, marginBottom: 15 },
+  resultCard: { width: '100%', flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 10, borderWidth: 2, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 10 },
   resultCardSuccess: { borderColor: '#28a745' },
   resultCardError: { borderColor: '#dc3545' },
-  statusCircle: { width: 84, height: 84, borderRadius: 42, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
+  statusCircle: { width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   circleSuccess: { backgroundColor: '#28a745' },
   circleError: { backgroundColor: '#dc3545' },
-  statusIcon: { fontSize: 50, color: '#fff', fontWeight: 'bold', lineHeight: 58 },
-  resultTitle: { fontSize: 18, fontWeight: 'bold', textAlign: 'center' },
+  statusIcon: { fontSize: 32, color: '#fff', fontWeight: 'bold', lineHeight: 38 },
+  resultInfo: { flex: 1 },
+  resultTitle: { fontSize: 15, fontWeight: 'bold' },
   titleSuccess: { color: '#28a745' },
   titleError: { color: '#dc3545' },
-  resultMessage: { fontSize: 14, color: '#555', textAlign: 'center', marginTop: 4 },
-  personBox: { width: '100%', marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#eee', alignItems: 'center' },
-  personName: { fontSize: 16, fontWeight: 'bold', color: '#333' },
-  personDetail: { fontSize: 13, color: '#666', marginTop: 2, textAlign: 'center' },
-  personCode: { fontSize: 12, color: '#1A365D', marginTop: 6, fontWeight: 'bold', letterSpacing: 0.5 },
+  resultMessage: { fontSize: 12, color: '#555', marginTop: 1 },
+  personBox: { marginTop: 6, paddingTop: 6, borderTopWidth: 1, borderTopColor: '#eee' },
+  personName: { fontSize: 14, fontWeight: 'bold', color: '#333' },
+  personDetail: { fontSize: 12, color: '#666', marginTop: 1 },
+  personCode: { fontSize: 11, color: '#1A365D', marginTop: 3, fontWeight: 'bold', letterSpacing: 0.5 },
 
-  nextScanBtn: { backgroundColor: '#007bff', paddingVertical: 12, paddingHorizontal: 25, borderRadius: 8, width: '100%', alignItems: 'center', marginBottom: 10, elevation: 2 },
-  photoUploadBtn: { flexDirection: 'row', backgroundColor: '#17a2b8', paddingVertical: 12, paddingHorizontal: 25, borderRadius: 8, width: '100%', justifyContent: 'center', alignItems: 'center', marginBottom: 10, elevation: 2 },
+  nextScanBtn: { backgroundColor: '#007bff', paddingVertical: 10, paddingHorizontal: 25, borderRadius: 8, width: '100%', alignItems: 'center', marginBottom: 8, elevation: 2 },
+  photoUploadBtn: { flexDirection: 'row', backgroundColor: '#17a2b8', paddingVertical: 10, paddingHorizontal: 25, borderRadius: 8, width: '100%', justifyContent: 'center', alignItems: 'center', marginBottom: 8, elevation: 2 },
   btnIconStyle: { width: 20, height: 20, marginRight: 8, tintColor: '#fff' },
-  cameraSwitchBtn: { backgroundColor: '#ffc107', paddingVertical: 12, paddingHorizontal: 25, borderRadius: 8, width: '100%', alignItems: 'center', marginBottom: 10, elevation: 2 },
+  cameraSwitchBtn: { backgroundColor: '#ffc107', paddingVertical: 10, paddingHorizontal: 25, borderRadius: 8, width: '100%', alignItems: 'center', marginBottom: 8, elevation: 2 },
   errorText: { fontSize: 16, color: 'red' },
   btnText: { color: '#fff', fontSize: 15, fontWeight: 'bold' }
 });
