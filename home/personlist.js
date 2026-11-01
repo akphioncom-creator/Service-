@@ -46,16 +46,14 @@ export default function PersonListScreen({ onBack }) {
     };
   }, []);
 
-  const handleSearch = (text) => {
-    setSearchQuery(text);
+  // নাম, নম্বর, এনআইডি, মোবাইল, ঠিকানা ও ইউনিক কিউআর কোড দিয়ে সার্চ
+  const filterList = (list, text) => {
     if (!text.trim()) {
-      setFilteredList(dataList);
-      return;
+      return list;
     }
     const query = text.toLowerCase();
 
-    // নাম, নম্বর, এনআইডি, মোবাইল, ঠিকানা ও ইউনিক কিউআর কোড দিয়ে সার্চ
-    const results = dataList.filter(item =>
+    return list.filter(item =>
       safeText(item.number).toLowerCase().includes(query) ||
       safeText(item.name).toLowerCase().includes(query) ||
       safeText(item.nid).toLowerCase().includes(query) ||
@@ -65,7 +63,11 @@ export default function PersonListScreen({ onBack }) {
       safeText(item.village).toLowerCase().includes(query) ||
       safeText(item.uniqueCode).toLowerCase().includes(query)
     );
-    setFilteredList(results);
+  };
+
+  const handleSearch = (text) => {
+    setSearchQuery(text);
+    setFilteredList(filterList(dataList, text));
   };
 
   // স্টোরেজ ও লিস্ট থেকে নির্দিষ্ট ব্যক্তির তথ্য মুছে ফেলার ফাংশন
@@ -82,6 +84,64 @@ export default function PersonListScreen({ onBack }) {
     }
   };
 
+  // রিস্টার্ট: সবার স্ক্যানের তথ্য মুছে ফেলা, ফলে সবাই আবার সবুজ হবে
+  const restartAll = async () => {
+    try {
+      const newDataList = dataList.map((item) => {
+        const { scanned, scannedAt, ...rest } = item;
+        return rest;
+      });
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newDataList));
+
+      setDataList(newDataList);
+      setFilteredList(filterList(newDataList, searchQuery));
+
+      Alert.alert('সফল', 'রিস্টার্ট সম্পন্ন হয়েছে। সবাই এখন আবার সবুজ।');
+    } catch (error) {
+      console.error('Restart error:', error);
+      Alert.alert('ত্রুটি', 'রিস্টার্ট করার সময় একটি সমস্যা হয়েছে।');
+    }
+  };
+
+  // রিস্টার্ট বাটনে চাপ দিলে ৩ ধাপের সতর্কবার্তা, তিন ধাপ পার হলে তবেই রিস্টার্ট হবে
+  const confirmRestart = () => {
+    if (!dataList.some((item) => item.scanned)) {
+      Alert.alert('রিস্টার্ট', 'রিস্টার্ট করার মতো কোনো স্ক্যান করা তথ্য নেই।');
+      return;
+    }
+
+    Alert.alert(
+      'সতর্কতা (১/৩)',
+      'রিস্টার্ট দিলে সবার স্ক্যানের তথ্য মুছে যাবে এবং সবাই আবার সবুজ হয়ে যাবে। আপনি কি এগিয়ে যেতে চান?',
+      [
+        { text: 'বাতিল', style: 'cancel' },
+        {
+          text: 'এগিয়ে যান',
+          onPress: () =>
+            Alert.alert(
+              'সতর্কতা (২/৩)',
+              'এই কাজ ফেরানো যাবে না। যাদের কার্ড আগে স্ক্যান হয়েছে, তাদের কার্ড আবার স্ক্যান করা যাবে। আপনি কি নিশ্চিত?',
+              [
+                { text: 'বাতিল', style: 'cancel' },
+                {
+                  text: 'হ্যাঁ, নিশ্চিত',
+                  onPress: () =>
+                    Alert.alert(
+                      'চূড়ান্ত সতর্কতা (৩/৩)',
+                      'এটিই শেষ ধাপ। "রিস্টার্ট করুন" চাপলে এখনই সবার স্ক্যানের তথ্য মুছে যাবে।',
+                      [
+                        { text: 'বাতিল', style: 'cancel' },
+                        { text: 'রিস্টার্ট করুন', style: 'destructive', onPress: restartAll },
+                      ]
+                    ),
+                },
+              ]
+            ),
+        },
+      ]
+    );
+  };
+
   // ডিলিট করার আগে নিশ্চিতকরণ বার্তা
   const confirmDelete = (item) => {
     Alert.alert(
@@ -96,12 +156,19 @@ export default function PersonListScreen({ onBack }) {
 
   return (
     <View style={styles.container}>
-      <TextInput
-        style={styles.input}
-        placeholder="নাম, নম্বর বা কিউআর কোড দিয়ে সার্চ করুন..."
-        value={searchQuery}
-        onChangeText={handleSearch}
-      />
+      <View style={styles.searchRow}>
+        <TextInput
+          style={styles.input}
+          placeholder="নাম, নম্বর বা কিউআর কোড দিয়ে সার্চ করুন..."
+          value={searchQuery}
+          onChangeText={handleSearch}
+        />
+
+        {/* রিস্টার্ট বাটন */}
+        <TouchableOpacity style={styles.restartBtn} onPress={confirmRestart}>
+          <Text style={styles.restartIcon}>↻</Text>
+        </TouchableOpacity>
+      </View>
 
       <Text style={styles.title}>All Person List ({filteredList.length})</Text>
 
@@ -181,7 +248,10 @@ export default function PersonListScreen({ onBack }) {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: '#f8f9fa', paddingTop: 15 },
   title: { fontSize: 20, fontWeight: 'bold', marginBottom: 15, textAlign: 'center', color: '#333' },
-  input: { height: 48, borderWidth: 1, borderColor: '#ced4da', borderRadius: 8, paddingHorizontal: 15, backgroundColor: '#fff', fontSize: 16, marginBottom: 15 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
+  input: { flex: 1, height: 48, borderWidth: 1, borderColor: '#ced4da', borderRadius: 8, paddingHorizontal: 15, backgroundColor: '#fff', fontSize: 16 },
+  restartBtn: { width: 48, height: 48, marginLeft: 10, borderRadius: 8, borderWidth: 1, borderColor: '#ced4da', backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center' },
+  restartIcon: { fontSize: 28, color: '#1A365D', lineHeight: 32 },
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 12, borderRadius: 8, marginBottom: 8, borderWidth: 1, borderColor: '#e9ecef' },
   cardScanned: { backgroundColor: '#fdecea', borderColor: '#dc3545', borderWidth: 1.5 },
   cardNotScanned: { backgroundColor: '#eaf7ee', borderColor: '#28a745', borderWidth: 1.5 },
