@@ -7,6 +7,15 @@ const STORAGE_KEY = 'persistent_numbers_data';
 // যেকোনো মানকে নিরাপদে স্ট্রিং-এ রূপান্তর (খালি/undefined হলে ক্র্যাশ এড়াতে)
 const safeText = (value) => (value === undefined || value === null ? '' : String(value));
 
+// ISO সময়কে পড়ার উপযোগী তারিখ-সময়ে রূপান্তর (দিন/মাস/বছর ঘণ্টা:মিনিট)
+const formatDateTime = (iso) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
 export default function PersonListScreen({ onBack }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [dataList, setDataList] = useState([]);
@@ -99,8 +108,12 @@ export default function PersonListScreen({ onBack }) {
       <FlatList
         data={filteredList}
         keyExtractor={(item, index) => safeText(item.id || item.uniqueCode) || String(index)}
-        renderItem={({ item, index }) => (
-          <View style={styles.card}>
+        renderItem={({ item, index }) => {
+          // একবার স্ক্যান হলে লাল, একবারও স্ক্যান না হলে সবুজ
+          const isScanned = !!item.scanned;
+
+          return (
+          <View style={[styles.card, isScanned ? styles.cardScanned : styles.cardNotScanned]}>
             <Text style={styles.index}>#{index + 1}</Text>
 
             {item.image ? (
@@ -140,6 +153,13 @@ export default function PersonListScreen({ onBack }) {
                   <Text style={styles.codeText} selectable>{item.uniqueCode}</Text>
                 </View>
               ) : null}
+
+              {/* স্ক্যান স্ট্যাটাস */}
+              <Text style={[styles.statusText, isScanned ? styles.statusScanned : styles.statusNotScanned]}>
+                {isScanned
+                  ? 'স্ক্যান হয়েছে' + (item.scannedAt ? ' (' + formatDateTime(item.scannedAt) + ')' : '')
+                  : 'এখনো স্ক্যান হয়নি'}
+              </Text>
             </View>
 
             {/* ডিলিট বাটন (deleteicon.xml) */}
@@ -151,7 +171,8 @@ export default function PersonListScreen({ onBack }) {
               <Image source={{ uri: 'deleteicon' }} style={styles.deleteIconStyle} />
             </TouchableOpacity>
           </View>
-        )}
+          );
+        }}
       />
     </View>
   );
@@ -162,6 +183,11 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: 'bold', marginBottom: 15, textAlign: 'center', color: '#333' },
   input: { height: 48, borderWidth: 1, borderColor: '#ced4da', borderRadius: 8, paddingHorizontal: 15, backgroundColor: '#fff', fontSize: 16, marginBottom: 15 },
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 12, borderRadius: 8, marginBottom: 8, borderWidth: 1, borderColor: '#e9ecef' },
+  cardScanned: { backgroundColor: '#fdecea', borderColor: '#dc3545', borderWidth: 1.5 },
+  cardNotScanned: { backgroundColor: '#eaf7ee', borderColor: '#28a745', borderWidth: 1.5 },
+  statusText: { fontSize: 12, fontWeight: 'bold', marginTop: 5 },
+  statusScanned: { color: '#dc3545' },
+  statusNotScanned: { color: '#28a745' },
   index: { fontSize: 14, fontWeight: 'bold', color: '#888', marginRight: 15 },
   userImage: { width: 50, height: 62, borderRadius: 4, borderWidth: 1, borderColor: '#ccc', marginRight: 12 },
   nameText: { fontSize: 16, fontWeight: 'bold', color: '#333' },
@@ -170,6 +196,6 @@ const styles = StyleSheet.create({
   codeBox: { flexDirection: 'row', alignItems: 'center', marginTop: 4, backgroundColor: '#eef4ff', paddingVertical: 3, paddingHorizontal: 8, borderRadius: 4, alignSelf: 'flex-start' },
   codeLabel: { fontSize: 12, color: '#1A365D', marginRight: 6 },
   codeText: { fontSize: 13, fontWeight: 'bold', color: '#1A365D', letterSpacing: 0.5 },
-  deleteBtn: { padding: 8, backgroundColor: '#fdecea', borderRadius: 6, marginLeft: 8, justifyContent: 'center', alignItems: 'center' },
+  deleteBtn: { padding: 8, backgroundColor: '#ffffff', borderRadius: 6, marginLeft: 8, justifyContent: 'center', alignItems: 'center' },
   deleteIconStyle: { width: 22, height: 22, tintColor: '#dc3545' }
 });
