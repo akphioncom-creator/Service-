@@ -101,6 +101,7 @@ export default function CardScreen({ cardData, onBack }) {
           age: cardData.age === undefined || cardData.age === null ? '' : cardData.age,
           ageText: cardData.ageText || '',
           ward: cardData.ward || '',
+          socialStatus: cardData.socialStatus || '',
           district: cardData.district || '',
           upazila: cardData.upazila || '',
           village: cardData.village || '',
@@ -220,7 +221,7 @@ export default function CardScreen({ cardData, onBack }) {
           {/* বাম পাশ: ছবি, তার নিচে গ্রাম, ওয়ার্ড নং, থানা ও জেলা */}
           <View style={styles.cardLeftSection}>
             {cardData.image ? (
-              <Image source={{ uri: cardData.image }} style={styles.cardUserImage} />
+              <Image source={{ uri: cardData.image }} style={styles.cardUserImage} resizeMode="cover" />
             ) : (
               <View style={[styles.cardUserImage, { backgroundColor: '#ccc' }]} />
             )}
@@ -228,6 +229,9 @@ export default function CardScreen({ cardData, onBack }) {
             <Text style={styles.cardAddressText}>ওয়ার্ড নং: {cardData.ward}</Text>
             <Text style={styles.cardAddressText}>থানা: {cardData.upazila}</Text>
             <Text style={styles.cardAddressText}>জেলা: {cardData.district}</Text>
+            {cardData.socialStatus ? (
+              <Text style={styles.cardStatusText}>{cardData.socialStatus}</Text>
+            ) : null}
           </View>
 
           {/* মাঝের অংশ: নাম, পিতার নাম, মাতার নাম, এনআইডি, লিঙ্গ, পেশা, মোবাইল ও বয়স */}
@@ -294,8 +298,9 @@ const styles = StyleSheet.create({
   watermarkContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 0 },
   cardBody: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 1 },
   cardLeftSection: { width: '26%', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#eee', paddingRight: 6 },
-  cardUserImage: { width: 60, height: 75, borderRadius: 4, borderWidth: 1, borderColor: '#ccc', marginBottom: 5 },
+  cardUserImage: { width: 63, height: 81, borderRadius: 2, borderWidth: 1, borderColor: '#ccc', marginBottom: 5 },
   cardAddressText: { fontSize: 9, color: '#333', textAlign: 'center', marginTop: 1 },
+  cardStatusText: { fontSize: 9, fontWeight: 'bold', color: '#1A365D', textAlign: 'center', marginTop: 3 },
   cardMiddleSection: { width: '42%', paddingLeft: 6, paddingRight: 2 },
   fieldLine: { fontSize: 11, marginVertical: 2 },
   fieldLabel: { color: '#555', fontWeight: 'normal' },
