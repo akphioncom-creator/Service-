@@ -174,15 +174,15 @@ export default function CardScreen({ cardData, onBack }) {
       ? `${toBengaliDigits(cardData.age)} বছর`
       : '');
 
-  // কার্ডের মাঝখানের আটটি তথ্য (উপর থেকে নিচে)
+  // কার্ডের মাঝখানের আটটি তথ্য (উপর থেকে নিচে), প্রতিটি এক লাইনে "লেবেল: মান" আকারে
   const middleFields = [
     ['নাম', cardData.name],
     ['পিতার নাম', cardData.fatherName],
     ['মাতার নাম', cardData.motherName],
-    ['জাতীয় পরিচয়পত্র নম্বর', cardData.nid],
+    ['এনআইডি', cardData.nid],
     ['লিঙ্গ', cardData.gender],
     ['পেশা', cardData.occupation],
-    ['মোবাইল নম্বর', cardData.phone],
+    ['মোবাইল', cardData.phone],
     ['বয়স', ageDisplay],
   ];
 
@@ -233,10 +233,16 @@ export default function CardScreen({ cardData, onBack }) {
           {/* মাঝের অংশ: নাম, পিতার নাম, মাতার নাম, এনআইডি, লিঙ্গ, পেশা, মোবাইল ও বয়স */}
           <View style={styles.cardMiddleSection}>
             {middleFields.map(([label, value]) => (
-              <View key={label}>
-                <Text style={styles.fieldLabel}>{label}</Text>
-                <Text style={styles.fieldValue} numberOfLines={2}>{value}</Text>
-              </View>
+              <Text
+                key={label}
+                style={styles.fieldLine}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.6}
+              >
+                <Text style={styles.fieldLabel}>{label}: </Text>
+                <Text style={styles.fieldValue}>{value}</Text>
+              </Text>
             ))}
           </View>
 
@@ -244,7 +250,7 @@ export default function CardScreen({ cardData, onBack }) {
           <View style={styles.cardRightSection}>
             {uniqueCode ? (
               <>
-                <QRCode value={uniqueCode} size={105} />
+                <QRCode value={uniqueCode} size={86} />
                 <Text style={styles.qrCodeText}>{uniqueCode}</Text>
               </>
             ) : (
@@ -287,15 +293,16 @@ const styles = StyleSheet.create({
   cardContainer: { width: '100%', backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: '#1A365D', borderRadius: 10, padding: 14, marginTop: 10, marginBottom: 20, elevation: 5, position: 'relative', overflow: 'hidden' },
   watermarkContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 0 },
   cardBody: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 1 },
-  cardLeftSection: { width: '27%', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#eee', paddingRight: 6 },
+  cardLeftSection: { width: '26%', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#eee', paddingRight: 6 },
   cardUserImage: { width: 60, height: 75, borderRadius: 4, borderWidth: 1, borderColor: '#ccc', marginBottom: 5 },
   cardAddressText: { fontSize: 9, color: '#333', textAlign: 'center', marginTop: 1 },
-  cardMiddleSection: { width: '37%', paddingLeft: 8, paddingRight: 6 },
-  fieldLabel: { fontSize: 8, color: '#666', marginTop: 3 },
-  fieldValue: { fontSize: 11, fontWeight: 'bold', color: '#000' },
-  cardRightSection: { width: '36%', alignItems: 'center', justifyContent: 'center', borderLeftWidth: 1, borderLeftColor: '#eee', paddingLeft: 6 },
+  cardMiddleSection: { width: '42%', paddingLeft: 6, paddingRight: 2 },
+  fieldLine: { fontSize: 11, marginVertical: 2 },
+  fieldLabel: { color: '#555', fontWeight: 'normal' },
+  fieldValue: { color: '#000', fontWeight: 'bold' },
+  cardRightSection: { width: '32%', alignItems: 'center', justifyContent: 'center', borderLeftWidth: 1, borderLeftColor: '#eee', paddingLeft: 6 },
   qrCodeText: { fontSize: 9, color: '#333', marginTop: 4, letterSpacing: 0.5, textAlign: 'center' },
-  qrPlaceholder: { width: 105, height: 105, alignItems: 'center', justifyContent: 'center' },
+  qrPlaceholder: { width: 86, height: 86, alignItems: 'center', justifyContent: 'center' },
   qrPlaceholderText: { fontSize: 18, color: '#999' },
 
   btn: { backgroundColor: '#28a745', paddingVertical: 12, paddingHorizontal: 30, borderRadius: 8, alignItems: 'center', marginTop: 10, width: '100%' },
