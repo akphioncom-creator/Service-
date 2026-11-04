@@ -210,7 +210,7 @@ export default function AddNewScreen({ onNext, onBack }) {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      aspect: [7, 9],
+      aspect: [1, 1],
       quality: 0.8,
     });
 
@@ -535,7 +535,7 @@ const styles = StyleSheet.create({
   container: { flexGrow: 1, padding: 15, backgroundColor: '#f8f9fa', paddingTop: 40 },
   mainTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 20, textAlign: 'center', color: '#1A365D' },
   imageContainer: { alignItems: 'center', marginBottom: 20 },
-  imagePickerBtn: { width: 78, height: 100, borderRadius: 8, backgroundColor: '#e9ecef', borderWidth: 2, borderColor: '#007bff', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  imagePickerBtn: { width: 100, height: 100, borderRadius: 8, backgroundColor: '#e9ecef', borderWidth: 2, borderColor: '#007bff', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   previewImage: { width: '100%', height: '100%' },
   imagePickerText: { fontSize: 12, textAlign: 'center', color: '#007bff', fontWeight: 'bold' },
   inputGroup: { marginBottom: 12 },
