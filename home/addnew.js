@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, Image, ScrollView, Keyboard, Platform } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, Image, ScrollView, Keyboard, Platform, Modal, ActivityIndicator } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY = 'smart_cards_data';
@@ -174,6 +175,13 @@ function DropdownField({ label, value, placeholder, options, onSelect, onOpen })
 
 export default function AddNewScreen({ onNext, onBack }) {
   const [image, setImage] = useState(null);
+
+  // ক্যামেরা সংক্রান্ত স্টেট: ক্যামেরা মডাল খোলা আছে কিনা, কোন ক্যামেরা (সামনে/পিছনে), ছবি তোলা চলছে কিনা
+  const [cameraVisible, setCameraVisible] = useState(false);
+  const [cameraFacing, setCameraFacing] = useState('back');
+  const [isCapturing, setIsCapturing] = useState(false);
+  const cameraRef = useRef(null);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [name, setName] = useState('');
   const [fatherName, setFatherName] = useState('');
   const [motherName, setMotherName] = useState('');
@@ -215,18 +223,43 @@ export default function AddNewScreen({ onNext, onBack }) {
   // শুধু সংখ্যা রাখা (বাংলা সংখ্যা লিখলেও ইংরেজিতে বদলে যাবে)
   const cleanDigits = (text, max) => toEnglishDigits(text).replace(/\D/g, '').slice(0, max);
 
+  // দিন: সর্বোচ্চ ৩১ (০০ মানে দিন অজানা)। ৩১ এর বেশি লেখা যাবে না।
   const handleDayChange = (text) => {
     const value = cleanDigits(text, 2);
+
+    // প্রথম সংখ্যা ৪-৯ হলে দিন এক সংখ্যারই হবে (যেমন ৫ => ০৫), তাই নিজে থেকে ০ বসিয়ে পরের ঘরে যাবে
+    if (value.length === 1 && parseInt(value, 10) > 3) {
+      setDobDay('0' + value);
+      if (monthRef.current) monthRef.current.focus();
+      return;
+    }
+
+    // দুই সংখ্যা ৩১ এর বেশি হলে গ্রহণ করা হবে না (আগের মানই থাকবে)
+    if (value.length === 2 && parseInt(value, 10) > 31) return;
+
     setDobDay(value);
     if (value.length === 2 && monthRef.current) monthRef.current.focus();
   };
 
+  // মাস: সর্বোচ্চ ১২ (০০ মানে মাস অজানা)। ১২ এর বেশি লেখা যাবে না।
   const handleMonthChange = (text) => {
     const value = cleanDigits(text, 2);
+
+    // প্রথম সংখ্যা ২-৯ হলে মাস এক সংখ্যারই হবে (যেমন ৫ => ০৫), তাই নিজে থেকে ০ বসিয়ে পরের ঘরে যাবে
+    if (value.length === 1 && parseInt(value, 10) > 1) {
+      setDobMonth('0' + value);
+      if (yearRef.current) yearRef.current.focus();
+      return;
+    }
+
+    // দুই সংখ্যা ১২ এর বেশি হলে গ্রহণ করা হবে না (আগের মানই থাকবে)
+    if (value.length === 2 && parseInt(value, 10) > 12) return;
+
     setDobMonth(value);
     if (value.length === 2 && yearRef.current) yearRef.current.focus();
   };
 
+  // বছর: সর্বোচ্চ ৪ সংখ্যা, ৪ সংখ্যার বেশি লেখা যাবে না
   const handleYearChange = (text) => {
     setDobYear(cleanDigits(text, 4));
   };
@@ -292,18 +325,79 @@ export default function AddNewScreen({ onNext, onBack }) {
     };
   }, []);
 
-  // ছবি পিক করার ফাংশন
-  const pickImage = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+  // গ্যালারি থেকে ছবি বাছাই করার ফাংশন (আগের মতোই ১:১ ক্রপ সহ)
+  const pickImageFromGallery = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
 
-    if (!result.canceled) {
-      setImage(result.assets[0].uri);
+      if (!result.canceled) {
+        setImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Gallery error:', error);
+      Alert.alert('ত্রুটি', 'গ্যালারি খুলতে সমস্যা হয়েছে।');
     }
+  };
+
+  // ছবির ঘরে চাপ দিলে ক্যামেরা খুলবে। অনুমতি না দিলে সরাসরি গ্যালারি খুলবে
+  const openCamera = async () => {
+    Keyboard.dismiss();
+
+    let granted = cameraPermission && cameraPermission.granted;
+    if (!granted) {
+      const response = await requestCameraPermission();
+      granted = response && response.granted;
+    }
+
+    if (!granted) {
+      Alert.alert('অনুমতি প্রয়োজন', 'ক্যামেরা ব্যবহারের অনুমতি পাওয়া যায়নি, তাই গ্যালারি থেকে ছবি বাছাই করুন।');
+      pickImageFromGallery();
+      return;
+    }
+
+    setCameraFacing('back');
+    setCameraVisible(true);
+  };
+
+  const closeCamera = () => {
+    setCameraVisible(false);
+  };
+
+  // ক্যামেরার মাঝের বাটনে চাপ দিলে ছবি তোলা হবে
+  const takePicture = async () => {
+    if (!cameraRef.current || isCapturing) return;
+
+    setIsCapturing(true);
+    try {
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.8 });
+      if (photo && photo.uri) {
+        setImage(photo.uri);
+        setCameraVisible(false);
+      }
+    } catch (error) {
+      console.error('Camera capture error:', error);
+      Alert.alert('ত্রুটি', 'ছবি তুলতে সমস্যা হয়েছে।');
+    } finally {
+      setIsCapturing(false);
+    }
+  };
+
+  // ক্যামেরার বাম পাশের গ্যালারি বাটন: ক্যামেরা বন্ধ করে গ্যালারি খোলা হবে
+  // (ক্যামেরা মডাল পুরো বন্ধ হওয়ার জন্য একটু অপেক্ষা, নাহলে আইফোনে গ্যালারি খুলতে সমস্যা হয়)
+  const openGalleryFromCamera = () => {
+    setCameraVisible(false);
+    setTimeout(() => {
+      pickImageFromGallery();
+    }, 400);
+  };
+
+  const toggleCameraFacing = () => {
+    setCameraFacing((prev) => (prev === 'back' ? 'front' : 'back'));
   };
 
   // বৈবাহিক অবস্থা পরিবর্তন: "বিবাহিত" ছাড়া অন্য কিছু হলে স্বামী/স্ত্রীর এনআইডি মুছে যাবে
@@ -390,11 +484,11 @@ export default function AddNewScreen({ onNext, onBack }) {
 
       {/* ফটো আপলোড অপশন */}
       <View style={styles.imageContainer}>
-        <TouchableOpacity style={styles.imagePickerBtn} onPress={pickImage}>
+        <TouchableOpacity style={styles.imagePickerBtn} onPress={openCamera}>
           {image ? (
             <Image source={{ uri: image }} style={styles.previewImage} />
           ) : (
-            <Text style={styles.imagePickerText}>📷 ছবি আপলোড করুন</Text>
+            <Text style={styles.imagePickerText}>📷 ছবি তুলুন</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -509,7 +603,7 @@ export default function AddNewScreen({ onNext, onBack }) {
             onBlur={handleFieldBlur}
           />
         </View>
-        <Text style={styles.hintText}>দিন বা মাস জানা না থাকলে ০০ লিখুন</Text>
+        <Text style={styles.hintText}>দিন সর্বোচ্চ ৩১, মাস সর্বোচ্চ ১২ এবং বছর ৪ সংখ্যার হবে। দিন বা মাস জানা না থাকলে ০০ লিখুন</Text>
       </View>
 
       {/* বয়স: জন্ম তারিখ থেকে নিজে থেকে বসে, হাতে লেখা যায় না */}
@@ -644,6 +738,57 @@ export default function AddNewScreen({ onNext, onBack }) {
       <TouchableOpacity style={[styles.btn, styles.backBtn]} onPress={onBack}>
         <Text style={styles.btnText}>ফিরে যান</Text>
       </TouchableOpacity>
+
+      {/* ক্যামেরা স্ক্রিন: মাঝে ছবি তোলার বাটন, বামে গ্যালারি, ডানে ক্যামেরা পাল্টানো */}
+      <Modal
+        visible={cameraVisible}
+        animationType="slide"
+        onRequestClose={closeCamera}
+      >
+        <View style={styles.cameraScreen}>
+          {cameraVisible && (
+            <CameraView
+              ref={cameraRef}
+              style={styles.cameraView}
+              facing={cameraFacing}
+            />
+          )}
+
+          {/* উপরে বন্ধ করার বাটন */}
+          <TouchableOpacity style={styles.cameraCloseBtn} onPress={closeCamera}>
+            <Text style={styles.cameraCloseText}>✕</Text>
+          </TouchableOpacity>
+
+          {/* নিচের বাটন বার */}
+          <View style={styles.cameraBottomBar}>
+            {/* বাম: গ্যালারি থেকে ছবি আপলোড */}
+            <TouchableOpacity style={styles.cameraSideBtn} onPress={openGalleryFromCamera}>
+              <Text style={styles.cameraSideIcon}>🖼️</Text>
+              <Text style={styles.cameraSideText}>গ্যালারি</Text>
+            </TouchableOpacity>
+
+            {/* মাঝ: ছবি তোলা */}
+            <TouchableOpacity
+              style={styles.shutterOuter}
+              onPress={takePicture}
+              disabled={isCapturing}
+              activeOpacity={0.7}
+            >
+              {isCapturing ? (
+                <ActivityIndicator size="large" color="#1A365D" />
+              ) : (
+                <View style={styles.shutterInner} />
+              )}
+            </TouchableOpacity>
+
+            {/* ডান: সামনে/পিছনের ক্যামেরা পাল্টানো */}
+            <TouchableOpacity style={styles.cameraSideBtn} onPress={toggleCameraFacing}>
+              <Text style={styles.cameraSideIcon}>🔄</Text>
+              <Text style={styles.cameraSideText}>ক্যামেরা</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -655,6 +800,18 @@ const styles = StyleSheet.create({
   imagePickerBtn: { width: 100, height: 100, borderRadius: 8, backgroundColor: '#e9ecef', borderWidth: 2, borderColor: '#007bff', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   previewImage: { width: '100%', height: '100%' },
   imagePickerText: { fontSize: 12, textAlign: 'center', color: '#007bff', fontWeight: 'bold' },
+
+  /* ক্যামেরা স্ক্রিন */
+  cameraScreen: { flex: 1, backgroundColor: '#000' },
+  cameraView: { flex: 1 },
+  cameraCloseBtn: { position: 'absolute', top: 40, left: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  cameraCloseText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
+  cameraBottomBar: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingTop: 20, paddingBottom: 35, paddingHorizontal: 25, backgroundColor: 'rgba(0,0,0,0.45)', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  cameraSideBtn: { width: 70, alignItems: 'center', justifyContent: 'center' },
+  cameraSideIcon: { fontSize: 30 },
+  cameraSideText: { color: '#fff', fontSize: 12, marginTop: 4 },
+  shutterOuter: { width: 76, height: 76, borderRadius: 38, backgroundColor: '#fff', borderWidth: 4, borderColor: '#ccc', justifyContent: 'center', alignItems: 'center' },
+  shutterInner: { width: 58, height: 58, borderRadius: 29, backgroundColor: '#fff', borderWidth: 2, borderColor: '#1A365D' },
   inputGroup: { marginBottom: 12 },
   label: { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 5 },
   input: { height: 48, borderWidth: 1, borderColor: '#ced4da', borderRadius: 8, paddingHorizontal: 15, backgroundColor: '#fff', fontSize: 16, color: '#000' },
