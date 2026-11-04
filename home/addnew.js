@@ -9,6 +9,8 @@ const STORAGE_KEY = 'smart_cards_data';
 const OCCUPATION_OPTIONS = ['কৃষক', 'শ্রমিক', 'ব্যবসায়ী', 'গৃহিণী', 'অন্যান্য'];
 const GENDER_OPTIONS = ['পুরুষ', 'মহিলা', 'তৃতীয় লিঙ্গ'];
 const MARITAL_OPTIONS = ['বিবাহিত', 'অবিবাহিত', 'বিধবা', 'বিপত্নিক'];
+// সামাজিক অবস্থান (হতদরিদ্র, দরিদ্র, মধ্যবিত্ত, প্রতিবন্ধী) — অপশন ও কার্ডে ইংরেজিতে দেখানো হবে
+const SOCIAL_STATUS_OPTIONS = ['Extremely Poor', 'Poor', 'Middle Class', 'Disabled'];
 const MARRIED = 'বিবাহিত';
 
 // বাংলা সংখ্যা (০-৯) কে ইংরেজি সংখ্যায় রূপান্তর
@@ -142,6 +144,7 @@ export default function AddNewScreen({ onNext, onBack }) {
   const [maritalStatus, setMaritalStatus] = useState('');
   const [spouseNid, setSpouseNid] = useState('');
   const [occupation, setOccupation] = useState('');
+  const [socialStatus, setSocialStatus] = useState('');
   const [ward, setWard] = useState('');
   const [village, setVillage] = useState('');
   const [upazila, setUpazila] = useState('');
@@ -207,7 +210,7 @@ export default function AddNewScreen({ onNext, onBack }) {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      aspect: [1, 1],
+      aspect: [7, 9],
       quality: 0.8,
     });
 
@@ -228,7 +231,7 @@ export default function AddNewScreen({ onNext, onBack }) {
   const handleNext = async () => {
     if (
       !name.trim() || !fatherName.trim() || !motherName.trim() || !nid.trim() || !phone.trim() ||
-      !dob.trim() || !gender || !maritalStatus || !occupation || !ward.trim() ||
+      !dob.trim() || !gender || !maritalStatus || !occupation || !socialStatus || !ward.trim() ||
       !village.trim() || !upazila.trim() || !district.trim()
     ) {
       Alert.alert('সতর্কতা', 'দয়া করে সবগুলো ঘর সঠিকভাবে পূরণ করুন!');
@@ -270,6 +273,7 @@ export default function AddNewScreen({ onNext, onBack }) {
         maritalStatus,
         spouseNid: maritalStatus === MARRIED ? spouseNid.trim() : '',
         occupation,
+        socialStatus,
         ward: ward.trim(),
         village: village.trim(),
         upazila: upazila.trim(),
@@ -451,6 +455,17 @@ export default function AddNewScreen({ onNext, onBack }) {
         />
       </View>
 
+      <View style={styles.inputGroup} onLayout={onFieldLayout('socialStatus')}>
+        <DropdownField
+          label="Social Status (সামাজিক অবস্থান):"
+          value={socialStatus}
+          placeholder="সামাজিক অবস্থান নির্বাচন করুন"
+          options={SOCIAL_STATUS_OPTIONS}
+          onSelect={setSocialStatus}
+          onOpen={() => scrollToField('socialStatus')}
+        />
+      </View>
+
       <View style={styles.inputGroup} onLayout={onFieldLayout('ward')}>
         <Text style={styles.label}>Ward No (ওয়ার্ড নং):</Text>
         <TextInput
@@ -520,7 +535,7 @@ const styles = StyleSheet.create({
   container: { flexGrow: 1, padding: 15, backgroundColor: '#f8f9fa', paddingTop: 40 },
   mainTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 20, textAlign: 'center', color: '#1A365D' },
   imageContainer: { alignItems: 'center', marginBottom: 20 },
-  imagePickerBtn: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#e9ecef', borderWidth: 2, borderColor: '#007bff', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  imagePickerBtn: { width: 78, height: 100, borderRadius: 8, backgroundColor: '#e9ecef', borderWidth: 2, borderColor: '#007bff', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   previewImage: { width: '100%', height: '100%' },
   imagePickerText: { fontSize: 12, textAlign: 'center', color: '#007bff', fontWeight: 'bold' },
   inputGroup: { marginBottom: 12 },
