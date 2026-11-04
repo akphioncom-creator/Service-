@@ -17,16 +17,8 @@ const MARRIED = 'বিবাহিত';
 const toEnglishDigits = (text) =>
   String(text).replace(/[০-৯]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x09e6 + 48));
 
-// জন্ম তারিখ লেখার সময় নিজে থেকে দিন/মাস/বছর (DD/MM/YYYY) আকারে সাজানো
-const formatDob = (text) => {
-  const digits = toEnglishDigits(text).replace(/\D/g, '').slice(0, 8);
-  let out = digits.slice(0, 2);
-  if (digits.length > 2) out += '/' + digits.slice(2, 4);
-  if (digits.length > 4) out += '/' + digits.slice(4, 8);
-  return out;
-};
-
-// জন্ম তারিখ সঠিক কিনা (বাস্তব তারিখ ও ভবিষ্যতের নয়) যাচাই
+// জন্ম তারিখ (DD/MM/YYYY) সঠিক কিনা যাচাই।
+// দিন বা মাস জানা না থাকলে ০০ দেওয়া যাবে: মাস ০০ হলে শুধু বছর ধরে, দিন ০০ হলে বছর ও মাস ধরে বয়স হিসাব হবে।
 const isValidDob = (value) => {
   const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
   if (!match) return false;
@@ -35,21 +27,39 @@ const isValidDob = (value) => {
   const month = parseInt(match[2], 10);
   const year = parseInt(match[3], 10);
 
-  if (year < 1900) return false;
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
 
+  if (year < 1900 || year > currentYear) return false;
+  if (month > 12 || day > 31) return false;
+
+  // মাস অজানা (০০): শুধু বছর দিয়েই গ্রহণযোগ্য
+  if (month === 0) return true;
+
+  // ভবিষ্যতের মাস নয়
+  if (year === currentYear && month > currentMonth) return false;
+
+  // দিন অজানা (০০): বছর ও মাস দিয়েই গ্রহণযোগ্য
+  if (day === 0) return true;
+
+  // দিন-মাস-বছর পূর্ণ: বাস্তব তারিখ ও ভবিষ্যতের নয়
   const date = new Date(year, month - 1, day);
   if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
     return false;
   }
 
-  return date.getTime() <= Date.now();
+  return date.getTime() <= now.getTime();
 };
 
 // ইংরেজি সংখ্যাকে বাংলা সংখ্যায় রূপান্তর (বয়স দেখানোর জন্য)
 const toBengaliDigits = (value) =>
   String(value).replace(/[0-9]/g, (d) => '০১২৩৪৫৬৭৮৯'[d]);
 
-// জন্ম তারিখ (DD/MM/YYYY) থেকে আজকের তারিখ পর্যন্ত বয়স (বছর, মাস, দিন) হিসাব করা
+// জন্ম তারিখ (DD/MM/YYYY) থেকে আজকের তারিখ পর্যন্ত বয়স হিসাব করা:
+// - পুরো তারিখ জানা থাকলে: বছর, মাস, দিন
+// - দিন ০০ হলে: বছর ও মাস
+// - মাস ০০ হলে: শুধু বছর (বছর-ভিত্তিক আনুমানিক হিসাব)
 const calculateAge = (value) => {
   if (!isValidDob(value)) return null;
 
@@ -59,14 +69,44 @@ const calculateAge = (value) => {
   const birthYear = parseInt(yearStr, 10);
 
   const today = new Date();
-  let years = today.getFullYear() - birthYear;
-  let months = today.getMonth() + 1 - birthMonth;
-  let days = today.getDate() - birthDay;
+  const todayYear = today.getFullYear();
+  const todayMonth = today.getMonth() + 1;
+  const todayDay = today.getDate();
 
+  let years = todayYear - birthYear;
+
+  // মাস অজানা: শুধু বছর
+  if (birthMonth === 0) {
+    return {
+      years,
+      months: null,
+      days: null,
+      text: `${toBengaliDigits(years)} বছর`,
+    };
+  }
+
+  let months = todayMonth - birthMonth;
+
+  // দিন অজানা: বছর ও মাস
+  if (birthDay === 0) {
+    if (months < 0) {
+      years -= 1;
+      months += 12;
+    }
+    return {
+      years,
+      months,
+      days: null,
+      text: `${toBengaliDigits(years)} বছর ${toBengaliDigits(months)} মাস`,
+    };
+  }
+
+  // পুরো তারিখ জানা: বছর, মাস, দিন
+  let days = todayDay - birthDay;
   if (days < 0) {
     months -= 1;
     // আগের মাসের মোট দিন যোগ করা
-    days += new Date(today.getFullYear(), today.getMonth(), 0).getDate();
+    days += new Date(todayYear, today.getMonth(), 0).getDate();
   }
   if (months < 0) {
     years -= 1;
@@ -139,7 +179,9 @@ export default function AddNewScreen({ onNext, onBack }) {
   const [motherName, setMotherName] = useState('');
   const [nid, setNid] = useState('');
   const [phone, setPhone] = useState('');
-  const [dob, setDob] = useState('');
+  const [dobDay, setDobDay] = useState('');
+  const [dobMonth, setDobMonth] = useState('');
+  const [dobYear, setDobYear] = useState('');
   const [gender, setGender] = useState('');
   const [maritalStatus, setMaritalStatus] = useState('');
   const [spouseNid, setSpouseNid] = useState('');
@@ -150,12 +192,57 @@ export default function AddNewScreen({ onNext, onBack }) {
   const [upazila, setUpazila] = useState('');
   const [district, setDistrict] = useState('');
 
+  // জন্ম তারিখ: দিন, মাস, বছরের তিনটি ঘর থেকে একত্র করা (এক সংখ্যার দিন/মাসের আগে নিজে থেকে ০ বসবে)
+  const dayPart = dobDay.length === 1 ? '0' + dobDay : dobDay;
+  const monthPart = dobMonth.length === 1 ? '0' + dobMonth : dobMonth;
+  const dob =
+    dayPart.length === 2 && monthPart.length === 2 && dobYear.length === 4
+      ? `${dayPart}/${monthPart}/${dobYear}`
+      : '';
+
   // জন্ম তারিখ সঠিক হলে বয়স নিজে থেকে হিসাব হবে, না হলে null
-  const ageInfo = calculateAge(dob.trim());
+  const ageInfo = calculateAge(dob);
 
   // কিবোর্ডের উচ্চতা, যাতে কিবোর্ড খোলা থাকলেও নিচের ঘরগুলো স্ক্রল করে দেখা যায়
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const scrollRef = useRef(null);
+
+  // দিন, মাস, বছরের ঘরের রেফ (এক ঘর পূর্ণ হলে পরের ঘরে কার্সর নেওয়ার জন্য)
+  const dayRef = useRef(null);
+  const monthRef = useRef(null);
+  const yearRef = useRef(null);
+
+  // শুধু সংখ্যা রাখা (বাংলা সংখ্যা লিখলেও ইংরেজিতে বদলে যাবে)
+  const cleanDigits = (text, max) => toEnglishDigits(text).replace(/\D/g, '').slice(0, max);
+
+  const handleDayChange = (text) => {
+    const value = cleanDigits(text, 2);
+    setDobDay(value);
+    if (value.length === 2 && monthRef.current) monthRef.current.focus();
+  };
+
+  const handleMonthChange = (text) => {
+    const value = cleanDigits(text, 2);
+    setDobMonth(value);
+    if (value.length === 2 && yearRef.current) yearRef.current.focus();
+  };
+
+  const handleYearChange = (text) => {
+    setDobYear(cleanDigits(text, 4));
+  };
+
+  // ঘর থেকে বেরোনোর সময় এক সংখ্যা থাকলে আগে ০ বসানো (যেমন ৫ => ০৫)
+  const padOnBlur = (value, setter) => {
+    if (value.length === 1) setter('0' + value);
+    handleFieldBlur();
+  };
+
+  // ঘর খালি থাকা অবস্থায় ব্যাকস্পেস চাপলে আগের ঘরে ফেরা
+  const handleBackspaceToPrev = (value, prevRef) => ({ nativeEvent }) => {
+    if (nativeEvent.key === 'Backspace' && value === '' && prevRef.current) {
+      prevRef.current.focus();
+    }
+  };
 
   // প্রতিটি ঘরের অবস্থান (y) ও বর্তমানে ফোকাসে থাকা ঘর মনে রাখার জন্য
   const fieldYRef = useRef({});
@@ -239,7 +326,7 @@ export default function AddNewScreen({ onNext, onBack }) {
     }
 
     if (!isValidDob(dob.trim())) {
-      Alert.alert('সতর্কতা', 'জন্ম তারিখ সঠিক নয়! দিন/মাস/বছর আকারে লিখুন (যেমন: 25/12/1990)।');
+      Alert.alert('সতর্কতা', 'জন্ম তারিখ সঠিক নয়! দিন, মাস ও বছর সঠিকভাবে লিখুন (যেমন: 25 / 12 / 1990)। দিন বা মাস জানা না থাকলে ০০ লিখুন।');
       return;
     }
 
@@ -382,17 +469,47 @@ export default function AddNewScreen({ onNext, onBack }) {
 
       <View style={styles.inputGroup} onLayout={onFieldLayout('dob')}>
         <Text style={styles.label}>Date of Birth (জন্ম তারিখ):</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="দিন/মাস/বছর (যেমন: 25/12/1990)"
-          placeholderTextColor="#999"
-          value={dob}
-          onChangeText={(text) => setDob(formatDob(text))}
-          keyboardType="numeric"
-          maxLength={10}
-          onFocus={() => handleFieldFocus('dob')}
-          onBlur={handleFieldBlur}
-        />
+        <View style={styles.dobRow}>
+          <TextInput
+            ref={dayRef}
+            style={[styles.input, styles.dobBox]}
+            placeholder="দিন"
+            placeholderTextColor="#999"
+            value={dobDay}
+            onChangeText={handleDayChange}
+            keyboardType="numeric"
+            maxLength={2}
+            onFocus={() => handleFieldFocus('dob')}
+            onBlur={() => padOnBlur(dobDay, setDobDay)}
+          />
+          <TextInput
+            ref={monthRef}
+            style={[styles.input, styles.dobBox]}
+            placeholder="মাস"
+            placeholderTextColor="#999"
+            value={dobMonth}
+            onChangeText={handleMonthChange}
+            keyboardType="numeric"
+            maxLength={2}
+            onKeyPress={handleBackspaceToPrev(dobMonth, dayRef)}
+            onFocus={() => handleFieldFocus('dob')}
+            onBlur={() => padOnBlur(dobMonth, setDobMonth)}
+          />
+          <TextInput
+            ref={yearRef}
+            style={[styles.input, styles.dobBox, styles.dobYearBox]}
+            placeholder="বছর"
+            placeholderTextColor="#999"
+            value={dobYear}
+            onChangeText={handleYearChange}
+            keyboardType="numeric"
+            maxLength={4}
+            onKeyPress={handleBackspaceToPrev(dobYear, monthRef)}
+            onFocus={() => handleFieldFocus('dob')}
+            onBlur={handleFieldBlur}
+          />
+        </View>
+        <Text style={styles.hintText}>দিন বা মাস জানা না থাকলে ০০ লিখুন</Text>
       </View>
 
       {/* বয়স: জন্ম তারিখ থেকে নিজে থেকে বসে, হাতে লেখা যায় না */}
@@ -541,6 +658,12 @@ const styles = StyleSheet.create({
   inputGroup: { marginBottom: 12 },
   label: { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 5 },
   input: { height: 48, borderWidth: 1, borderColor: '#ced4da', borderRadius: 8, paddingHorizontal: 15, backgroundColor: '#fff', fontSize: 16, color: '#000' },
+
+  /* জন্ম তারিখের তিনটি ছোট ছক (দিন, মাস, বছর) */
+  dobRow: { flexDirection: 'row' },
+  dobBox: { flex: 1, marginRight: 8, paddingHorizontal: 4, textAlign: 'center' },
+  dobYearBox: { flex: 1.6, marginRight: 0 },
+  hintText: { fontSize: 11, color: '#888', marginTop: 4 },
 
   /* ড্রপডাউন (পেশা, লিঙ্গ, বৈবাহিক অবস্থা) */
   dropdownBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
