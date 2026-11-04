@@ -254,7 +254,7 @@ export default function CardScreen({ cardData, onBack }) {
           <View style={styles.cardRightSection}>
             {uniqueCode ? (
               <>
-                <QRCode value={uniqueCode} size={86} />
+                <QRCode value={uniqueCode} size={84} />
                 <Text style={styles.qrCodeText}>{uniqueCode}</Text>
               </>
             ) : (
@@ -297,17 +297,17 @@ const styles = StyleSheet.create({
   cardContainer: { width: '100%', backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: '#1A365D', borderRadius: 10, padding: 14, marginTop: 10, marginBottom: 20, elevation: 5, position: 'relative', overflow: 'hidden' },
   watermarkContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 0 },
   cardBody: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 1 },
-  cardLeftSection: { width: '26%', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#eee', paddingRight: 6 },
-  cardUserImage: { width: 63, height: 81, borderRadius: 2, borderWidth: 1, borderColor: '#ccc', marginBottom: 5 },
+  cardLeftSection: { width: '29%', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#eee', paddingRight: 6 },
+  cardUserImage: { width: 78, height: 78, borderRadius: 2, borderWidth: 1, borderColor: '#ccc', marginBottom: 5 },
   cardAddressText: { fontSize: 9, color: '#333', textAlign: 'center', marginTop: 1 },
   cardStatusText: { fontSize: 9, fontWeight: 'bold', color: '#1A365D', textAlign: 'center', marginTop: 3 },
-  cardMiddleSection: { width: '42%', paddingLeft: 6, paddingRight: 2 },
+  cardMiddleSection: { width: '40%', paddingLeft: 6, paddingRight: 2 },
   fieldLine: { fontSize: 11, marginVertical: 2 },
   fieldLabel: { color: '#555', fontWeight: 'normal' },
   fieldValue: { color: '#000', fontWeight: 'bold' },
-  cardRightSection: { width: '32%', alignItems: 'center', justifyContent: 'center', borderLeftWidth: 1, borderLeftColor: '#eee', paddingLeft: 6 },
+  cardRightSection: { width: '31%', alignItems: 'center', justifyContent: 'center', borderLeftWidth: 1, borderLeftColor: '#eee', paddingLeft: 6 },
   qrCodeText: { fontSize: 9, color: '#333', marginTop: 4, letterSpacing: 0.5, textAlign: 'center' },
-  qrPlaceholder: { width: 86, height: 86, alignItems: 'center', justifyContent: 'center' },
+  qrPlaceholder: { width: 84, height: 84, alignItems: 'center', justifyContent: 'center' },
   qrPlaceholderText: { fontSize: 18, color: '#999' },
 
   btn: { backgroundColor: '#28a745', paddingVertical: 12, paddingHorizontal: 30, borderRadius: 8, alignItems: 'center', marginTop: 10, width: '100%' },
