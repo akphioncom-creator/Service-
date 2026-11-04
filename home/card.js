@@ -2,13 +2,19 @@ import React, { useRef, useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Image, Alert, ScrollView, NativeModules } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { captureRef } from 'react-native-view-shot';
-import Svg, { Path, Circle } from 'react-native-svg';
+import Svg, { Path, Circle, Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { GalleryModule } = NativeModules;
 
 // পারসন লিস্ট ফাইলের সাথে একই স্টোরেজ কী (key) ব্যবহার করা হয়েছে
 const STORAGE_KEY = 'persistent_numbers_data';
+
+// ছবির মাপ ও চারদিকের ঝাপসা অংশ (প্রতিদিকে ছবির ১/৫ ভাগ)
+const PHOTO_SIZE = 78;
+const FADE_SIZE = PHOTO_SIZE / 5;
+// ঝাপসা অংশের রং কার্ডের ব্যাকগ্রাউন্ডের সাথে মিলিয়ে রাখা হয়েছে
+const CARD_BG_COLOR = '#ffffff';
 
 // ইংরেজি সংখ্যাকে বাংলা সংখ্যায় রূপান্তর (বয়স দেখানোর জন্য)
 const toBengaliDigits = (value) =>
@@ -59,6 +65,53 @@ const resolveUniqueCode = (cardData, records) => {
   }
 
   return generateUniqueCode(records);
+};
+
+// ছবির চারদিকের ১/৫ অংশ ঝাপসা করে কার্ডের সাথে মিলিয়ে দেওয়ার কম্পোনেন্ট
+const FadedPhoto = ({ uri }) => {
+  // মসৃণ মিলিয়ে যাওয়ার জন্য একাধিক স্টপ ব্যবহার করা হয়েছে (হঠাৎ কিনারা দেখা যাবে না)
+  const fadeStops = (
+    <>
+      <Stop offset="0" stopColor={CARD_BG_COLOR} stopOpacity="1" />
+      <Stop offset="0.35" stopColor={CARD_BG_COLOR} stopOpacity="0.75" />
+      <Stop offset="0.7" stopColor={CARD_BG_COLOR} stopOpacity="0.3" />
+      <Stop offset="1" stopColor={CARD_BG_COLOR} stopOpacity="0" />
+    </>
+  );
+
+  return (
+    <View style={styles.photoWrapper}>
+      {uri ? (
+        <Image source={{ uri }} style={styles.photoImage} resizeMode="cover" />
+      ) : (
+        <View style={[styles.photoImage, { backgroundColor: '#ccc' }]} />
+      )}
+
+      {/* চার কিনারায় সাদা থেকে স্বচ্ছ গ্রেডিয়েন্ট ওভারলে */}
+      <Svg
+        width={PHOTO_SIZE}
+        height={PHOTO_SIZE}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      >
+        <Defs>
+          {/* উপর: উপর থেকে নিচে মিলিয়ে যাবে */}
+          <LinearGradient id="fadeTop" x1="0" y1="0" x2="0" y2="1">{fadeStops}</LinearGradient>
+          {/* নিচ: নিচ থেকে উপরে মিলিয়ে যাবে */}
+          <LinearGradient id="fadeBottom" x1="0" y1="1" x2="0" y2="0">{fadeStops}</LinearGradient>
+          {/* বাম: বাম থেকে ডানে মিলিয়ে যাবে */}
+          <LinearGradient id="fadeLeft" x1="0" y1="0" x2="1" y2="0">{fadeStops}</LinearGradient>
+          {/* ডান: ডান থেকে বামে মিলিয়ে যাবে */}
+          <LinearGradient id="fadeRight" x1="1" y1="0" x2="0" y2="0">{fadeStops}</LinearGradient>
+        </Defs>
+
+        <Rect x="0" y="0" width={PHOTO_SIZE} height={FADE_SIZE} fill="url(#fadeTop)" />
+        <Rect x="0" y={PHOTO_SIZE - FADE_SIZE} width={PHOTO_SIZE} height={FADE_SIZE} fill="url(#fadeBottom)" />
+        <Rect x="0" y="0" width={FADE_SIZE} height={PHOTO_SIZE} fill="url(#fadeLeft)" />
+        <Rect x={PHOTO_SIZE - FADE_SIZE} y="0" width={FADE_SIZE} height={PHOTO_SIZE} fill="url(#fadeRight)" />
+      </Svg>
+    </View>
+  );
 };
 
 export default function CardScreen({ cardData, onBack }) {
@@ -218,13 +271,9 @@ export default function CardScreen({ cardData, onBack }) {
 
         {/* কার্ডের মূল বডি */}
         <View style={styles.cardBody}>
-          {/* বাম পাশ: ছবি, তার নিচে গ্রাম, ওয়ার্ড নং, থানা ও জেলা */}
+          {/* বাম পাশ: ছবি (চারদিকে ঝাপসা), তার নিচে গ্রাম, ওয়ার্ড নং, থানা ও জেলা */}
           <View style={styles.cardLeftSection}>
-            {cardData.image ? (
-              <Image source={{ uri: cardData.image }} style={styles.cardUserImage} resizeMode="cover" />
-            ) : (
-              <View style={[styles.cardUserImage, { backgroundColor: '#ccc' }]} />
-            )}
+            <FadedPhoto uri={cardData.image} />
             <Text style={styles.cardAddressText}>গ্রাম: {cardData.village}</Text>
             <Text style={styles.cardAddressText}>ওয়ার্ড নং: {cardData.ward}</Text>
             <Text style={styles.cardAddressText}>থানা: {cardData.upazila}</Text>
@@ -294,11 +343,15 @@ const styles = StyleSheet.create({
   errorText: { fontSize: 16, color: 'red', marginBottom: 20 },
 
   /* প্রফেশনাল আইডি কার্ড প্রিভিউ স্টাইল ও গ্রাফিক ডিজাইন ব্যাকগ্রাউন্ড */
-  cardContainer: { width: '100%', backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: '#1A365D', borderRadius: 10, padding: 14, marginTop: 10, marginBottom: 20, elevation: 5, position: 'relative', overflow: 'hidden' },
+  cardContainer: { width: '100%', backgroundColor: CARD_BG_COLOR, borderWidth: 1.5, borderColor: '#1A365D', borderRadius: 10, padding: 14, marginTop: 10, marginBottom: 20, elevation: 5, position: 'relative', overflow: 'hidden' },
   watermarkContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 0 },
   cardBody: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 1 },
   cardLeftSection: { width: '29%', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#eee', paddingRight: 6 },
-  cardUserImage: { width: 78, height: 78, borderRadius: 2, borderWidth: 1, borderColor: '#ccc', marginBottom: 5 },
+
+  /* ছবির র‍্যাপার: বর্ডার ও গোল কোণা বাদ দেওয়া হয়েছে যাতে কিনারা কার্ডের সাথে মিশে যায় */
+  photoWrapper: { width: PHOTO_SIZE, height: PHOTO_SIZE, marginBottom: 5, overflow: 'hidden', backgroundColor: CARD_BG_COLOR },
+  photoImage: { width: PHOTO_SIZE, height: PHOTO_SIZE },
+
   cardAddressText: { fontSize: 9, color: '#333', textAlign: 'center', marginTop: 1 },
   cardStatusText: { fontSize: 9, fontWeight: 'bold', color: '#1A365D', textAlign: 'center', marginTop: 3 },
   cardMiddleSection: { width: '40%', paddingLeft: 6, paddingRight: 2 },
