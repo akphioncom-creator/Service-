@@ -57,6 +57,17 @@ const resolveUniqueCode = (cardData, records) => {
   return generateUniqueCode(records);
 };
 
+// কার্ডের নিচের তথ্যের ছকে একটি ঘর (লেবেল + মান); মান খালি থাকলে ঘরটি দেখানো হয় না
+function DetailItem({ label, value }) {
+  if (!value) return null;
+  return (
+    <View style={styles.detailItem}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <Text style={styles.fieldValue}>{value}</Text>
+    </View>
+  );
+}
+
 export default function CardScreen({ cardData, onBack }) {
   const cardRef = useRef();
   const initDoneRef = useRef(false);
@@ -92,6 +103,16 @@ export default function CardScreen({ cardData, onBack }) {
           district: cardData.district || '',
           upazila: cardData.upazila || '',
           village: cardData.village || '',
+          ward: cardData.ward || '',
+          fatherName: cardData.fatherName || '',
+          motherName: cardData.motherName || '',
+          occupation: cardData.occupation || '',
+          gender: cardData.gender || '',
+          dob: cardData.dob || '',
+          age: cardData.age !== undefined && cardData.age !== null ? cardData.age : null,
+          ageText: cardData.ageText || '',
+          maritalStatus: cardData.maritalStatus || '',
+          spouseNid: cardData.spouseNid || '',
           image: cardData.image || '',
           createdAt: cardData.createdAt || '',
         };
@@ -155,6 +176,13 @@ export default function CardScreen({ cardData, onBack }) {
     );
   }
 
+  // কার্ডে দেখানোর জন্য বয়স
+  const ageDisplay =
+    cardData.ageText ||
+    (cardData.age !== undefined && cardData.age !== null && cardData.age !== ''
+      ? cardData.age + ' বছর'
+      : '');
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       {/* হেডার উইথ ব্যাক আইকন (back_icon.xml) */}
@@ -196,21 +224,32 @@ export default function CardScreen({ cardData, onBack }) {
             <Text style={styles.cardAddressText}>{cardData.district}</Text>
             <Text style={styles.cardAddressText}>{cardData.upazila}</Text>
             <Text style={styles.cardAddressText}>গ্রাম: {cardData.village}</Text>
+            {cardData.ward ? (
+              <Text style={styles.cardAddressText}>ওয়ার্ড: {cardData.ward}</Text>
+            ) : null}
           </View>
 
-          {/* মাঝের অংশ: নাম, এনআইডি, মোবাইল ও তারিখ */}
+          {/* মাঝের অংশ: নাম, পিতার নাম, মাতার নাম ও এনআইডি */}
           <View style={styles.cardMiddleSection}>
             <Text style={styles.fieldLabel}>নাম</Text>
             <Text style={styles.fieldValue} numberOfLines={1}>{cardData.name}</Text>
 
+            {cardData.fatherName ? (
+              <>
+                <Text style={styles.fieldLabel}>পিতার নাম</Text>
+                <Text style={styles.fieldValue} numberOfLines={2}>{cardData.fatherName}</Text>
+              </>
+            ) : null}
+
+            {cardData.motherName ? (
+              <>
+                <Text style={styles.fieldLabel}>মাতার নাম</Text>
+                <Text style={styles.fieldValue} numberOfLines={2}>{cardData.motherName}</Text>
+              </>
+            ) : null}
+
             <Text style={styles.fieldLabel}>জাতীয় পরিচয়পত্র নম্বর</Text>
             <Text style={styles.fieldValue}>{cardData.nid}</Text>
-
-            <Text style={styles.fieldLabel}>মোবাইল নম্বর</Text>
-            <Text style={styles.fieldValue}>{cardData.phone}</Text>
-
-            <Text style={styles.fieldLabel}>তারিখ</Text>
-            <Text style={styles.fieldValue}>{cardData.createdAt}</Text>
           </View>
 
           {/* ডান পাশ: বড় কিউআর কোড (ভেতরে ইউনিক সংখ্যা) */}
@@ -226,6 +265,20 @@ export default function CardScreen({ cardData, onBack }) {
               </View>
             )}
           </View>
+        </View>
+
+        {/* নিচের অংশ: বাকি সকল তথ্যের ছক */}
+        <View style={styles.detailsGrid}>
+          <DetailItem label="জন্ম তারিখ" value={cardData.dob} />
+          <DetailItem label="বয়স" value={ageDisplay} />
+          <DetailItem label="লিঙ্গ" value={cardData.gender} />
+          <DetailItem label="পেশা" value={cardData.occupation} />
+          <DetailItem label="মোবাইল নম্বর" value={cardData.phone} />
+          <DetailItem label="বৈবাহিক অবস্থা" value={cardData.maritalStatus} />
+          {cardData.maritalStatus === 'বিবাহিত' ? (
+            <DetailItem label="স্বামী/স্ত্রীর এনআইডি" value={cardData.spouseNid} />
+          ) : null}
+          <DetailItem label="তারিখ" value={cardData.createdAt} />
         </View>
       </View>
 
@@ -267,6 +320,8 @@ const styles = StyleSheet.create({
   fieldLabel: { fontSize: 9, color: '#666', marginTop: 3 },
   fieldValue: { fontSize: 12, fontWeight: 'bold', color: '#000' },
   cardRightSection: { width: '36%', alignItems: 'center', justifyContent: 'center', borderLeftWidth: 1, borderLeftColor: '#eee', paddingLeft: 6 },
+  detailsGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#ddd', zIndex: 1 },
+  detailItem: { width: '50%', paddingRight: 6, marginBottom: 4 },
   qrCodeText: { fontSize: 9, color: '#333', marginTop: 4, letterSpacing: 0.5, textAlign: 'center' },
   qrPlaceholder: { width: 105, height: 105, alignItems: 'center', justifyContent: 'center' },
   qrPlaceholderText: { fontSize: 18, color: '#999' },
