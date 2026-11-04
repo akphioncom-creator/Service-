@@ -316,3 +316,4 @@ const styles = StyleSheet.create({
   btnIconStyle: { width: 20, height: 20, marginRight: 10, tintColor: '#fff' },
   btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
 });
+থ
