@@ -225,8 +225,8 @@ export default function CardScreen({ cardData, onBack }) {
           </Svg>
         </View>
 
-        {/* আগের ব্যাকগ্রাউন্ডের উপরে, কার্ডের মাঝখানে un.png (drawable/un.png) */}
-        <View style={styles.watermarkContainer} pointerEvents="none">
+        {/* গ্রাফিক ডিজাইনের উপরে (লেয়ার ১), কার্ডের মাঝখানে un.png (drawable/un.png) */}
+        <View style={[styles.watermarkContainer, styles.logoLayer]} pointerEvents="none">
           <Image
             source={{ uri: 'un' }}
             style={styles.cardBgImage}
@@ -323,9 +323,10 @@ const styles = StyleSheet.create({
   /* প্রফেশনাল আইডি কার্ড প্রিভিউ স্টাইল ও গ্রাফিক ডিজাইন ব্যাকগ্রাউন্ড */
   cardContainer: { width: '100%', backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: '#1A365D', borderRadius: 10, padding: 14, marginTop: 10, marginBottom: 20, elevation: 5, position: 'relative', overflow: 'hidden' },
   watermarkContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 0 },
-  cardBody: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 1 },
-  cardBgImage: { width: '80%', height: '100%', opacity: 0.25 },
-  govLogo: { position: 'absolute', top: 4, left: 4, width: 20, height: 20, zIndex: 2 },
+  cardBody: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 2 },
+  logoLayer: { zIndex: 1 },
+  cardBgImage: { width: '80%', height: '100%', opacity: 0.5 },
+  govLogo: { position: 'absolute', top: 4, left: 4, width: 20, height: 20, zIndex: 3 },
   cardLeftSection: { width: '30%', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#eee', paddingRight: 6 },
   cardUserImage: { width: 60, height: 60, borderRadius: 2, borderWidth: 1, borderColor: '#ccc', marginBottom: 5 },
   cardAddressText: { fontSize: 11, color: '#222', textAlign: 'center', marginTop: 2 },
