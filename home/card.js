@@ -66,10 +66,10 @@ const resolveUniqueCode = (cardData, records) => {
 
 // ছবির চারপাশে ধোঁয়াশা: কোনো প্যাকেজ ছাড়াই, একটার ভেতর একটা সাদা ফ্রেম (রিং) বসানো হয়েছে।
 // বাইরের রিং প্রায় পুরো সাদা, ভেতরের দিকে ক্রমশ স্বচ্ছ — ফলে ছবির কিনারা কার্ডের সাদা ব্যাকগ্রাউন্ডে মিশে যায়
-const HAZE_RINGS = 12;
+const HAZE_RINGS = 9;
 const renderPhotoHaze = (s) => {
   const step = 1 * s;
-  const outerRadius = 12 * s;
+  const outerRadius = 9 * s;
   const rings = [];
   for (let i = 0; i < HAZE_RINGS; i++) {
     const t = i / (HAZE_RINGS - 1); // ০ (বাইরে) থেকে ১ (ভেতরে)
@@ -109,7 +109,7 @@ const makeCardStyles = (s, hiRes) =>
     govLogo: { position: 'absolute', top: 3 * s, left: 3 * s, width: 24 * s, height: 24 * s, zIndex: 4 },
     cardLeftSection: { width: '30%', alignItems: 'center', borderRightWidth: 1 * s, borderRightColor: '#eee', paddingRight: 6 * s },
     // ছবির চারপাশে ধোঁয়াশা (ফেদার) ইফেক্টের জন্য ছবির মোড়ক ও ছবি
-    userPhotoWrap: { width: 72 * s, height: 72 * s, borderRadius: 12 * s, overflow: 'hidden', marginBottom: 5 * s, backgroundColor: '#ffffff' },
+    userPhotoWrap: { width: 52 * s, height: 52 * s, borderRadius: 9 * s, overflow: 'hidden', marginTop: 12 * s, marginBottom: 5 * s, backgroundColor: '#ffffff' },
     userPhotoFill: { width: '100%', height: '100%' },
     cardAddressText: { fontSize: 11 * s, color: '#222', textAlign: 'center', marginTop: 2 * s },
     cardStatusText: { fontSize: 11 * s, fontWeight: 'bold', color: '#1A365D', textAlign: 'center', marginTop: 4 * s },
