@@ -239,6 +239,8 @@ export default function CardScreen({ cardData, onBack }) {
           source={{ uri: 'gov' }}
           style={styles.govLogo}
           resizeMode="contain"
+          resizeMethod="resize"
+          fadeDuration={0}
         />
 
         {/* কার্ডের মূল বডি */}
@@ -326,7 +328,7 @@ const styles = StyleSheet.create({
   cardBody: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 2 },
   logoLayer: { zIndex: 1 },
   cardBgImage: { width: '80%', height: '100%', opacity: 0.5 },
-  govLogo: { position: 'absolute', top: 4, left: 4, width: 20, height: 20, zIndex: 3 },
+  govLogo: { position: 'absolute', top: 3, left: 3, width: 24, height: 24, zIndex: 3 },
   cardLeftSection: { width: '30%', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#eee', paddingRight: 6 },
   cardUserImage: { width: 60, height: 60, borderRadius: 2, borderWidth: 1, borderColor: '#ccc', marginBottom: 5 },
   cardAddressText: { fontSize: 11, color: '#222', textAlign: 'center', marginTop: 2 },
