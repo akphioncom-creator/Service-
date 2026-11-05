@@ -17,6 +17,16 @@ const EXPORT_WIDTH_PX = 3840;
 const toBengaliDigits = (value) =>
   String(value).replace(/[0-9]/g, (d) => '০১২৩৪৫৬৭৮৯'[d]);
 
+// কার্ড তৈরির তারিখকে বাংলা সংখ্যায় দিন/মাস/বছর (যেমন ০৫/১১/২০২৬) আকারে সাজায়
+const formatCreatedDate = (value) => {
+  if (!value) return '';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return toBengaliDigits(value);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return toBengaliDigits(`${dd}/${mm}/${d.getFullYear()}`);
+};
+
 // স্টোরেজ থেকে সব সংরক্ষিত কার্ডের তালিকা পড়ার ফাংশন
 const readAllRecords = async () => {
   try {
@@ -127,6 +137,7 @@ const makeCardStyles = (s, hiRes) =>
     fieldLabel: { color: '#555', fontWeight: 'normal' },
     fieldValue: { color: '#000', fontWeight: 'bold' },
     cardRightSection: { width: '31%', alignItems: 'center', justifyContent: 'center', borderLeftWidth: 1 * s, borderLeftColor: '#eee', paddingLeft: 6 * s },
+    createdDateText: { fontSize: 10 * s, color: '#333', marginBottom: 4 * s, textAlign: 'center', ...makeHalo(s) },
     qrCodeText: { fontSize: 10 * s, color: '#333', marginTop: 4 * s, letterSpacing: 0.5 * s, textAlign: 'center', ...makeHalo(s) },
     qrPlaceholder: { width: 84 * s, height: 84 * s, alignItems: 'center', justifyContent: 'center' },
     qrPlaceholderText: { fontSize: 18 * s, color: '#999' },
@@ -145,6 +156,8 @@ export default function CardScreen({ cardData, onBack }) {
   const [isSaving, setIsSaving] = useState(false);
   // স্ক্রিনে দেখানো কার্ডের প্রস্থ (dp) — এখান থেকেই 4K এর স্কেল বের হয়
   const [cardWidth, setCardWidth] = useState(0);
+  // কার্ড তৈরির তারিখ: প্রথমবার খোলার সময় অটোমেটিক বসে, পরে একই তারিখ থাকে
+  const [createdAt, setCreatedAt] = useState(null);
 
   // স্ক্রিনে দেখানো কার্ডের স্টাইল (স্কেল ১)
   const cardStyles = useMemo(() => makeCardStyles(1, false), []);
@@ -173,6 +186,11 @@ export default function CardScreen({ cardData, onBack }) {
         const records = await readAllRecords();
         const code = resolveUniqueCode(cardData, records);
 
+        // তারিখ: কার্ডের ডেটায় থাকলে সেটা, না থাকলে আগের সেভ করা তারিখ, তা-ও না থাকলে আজকের তারিখ (অটোমেটিক)
+        const previous = records.find((r) => String(r.uniqueCode) === String(code));
+        const createdAtValue =
+          cardData.createdAt || (previous && previous.createdAt) || new Date().toISOString();
+
         const record = {
           id: code,
           uniqueCode: code,
@@ -193,7 +211,7 @@ export default function CardScreen({ cardData, onBack }) {
           upazila: cardData.upazila || '',
           village: cardData.village || '',
           image: cardData.image || '',
-          createdAt: cardData.createdAt || '',
+          createdAt: createdAtValue,
         };
 
         const index = records.findIndex(
@@ -209,7 +227,10 @@ export default function CardScreen({ cardData, onBack }) {
 
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(records));
 
-        if (isMountedRef.current) setUniqueCode(code);
+        if (isMountedRef.current) {
+          setCreatedAt(createdAtValue);
+          setUniqueCode(code);
+        }
       } catch (error) {
         console.error('Storage save error:', error);
         Alert.alert('ত্রুটি', 'কার্ডের তথ্য সংরক্ষণ করার সময় একটি সমস্যা হয়েছে।');
@@ -393,6 +414,7 @@ export default function CardScreen({ cardData, onBack }) {
         <View style={cs.cardRightSection}>
           {uniqueCode ? (
             <>
+              <Text style={cs.createdDateText}>তারিখ: {formatCreatedDate(createdAt)}</Text>
               <QRCode value={uniqueCode} size={84 * s} />
               <Text style={cs.qrCodeText}>{uniqueCode}</Text>
             </>
