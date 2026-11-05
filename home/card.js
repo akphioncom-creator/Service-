@@ -1,5 +1,5 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Image, Alert, ScrollView, NativeModules } from 'react-native';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, Image, Alert, ScrollView, NativeModules, PixelRatio } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { captureRef } from 'react-native-view-shot';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -9,6 +9,9 @@ const { GalleryModule } = NativeModules;
 
 // পারসন লিস্ট ফাইলের সাথে একই স্টোরেজ কী (key) ব্যবহার করা হয়েছে
 const STORAGE_KEY = 'persistent_numbers_data';
+
+// গ্যালারিতে সেভ হওয়া কার্ড ছবির প্রস্থ (পিক্সেলে): ৩৮৪০ = 4K (UHD)
+const EXPORT_WIDTH_PX = 3840;
 
 // ইংরেজি সংখ্যাকে বাংলা সংখ্যায় রূপান্তর (বয়স দেখানোর জন্য)
 const toBengaliDigits = (value) =>
@@ -61,8 +64,35 @@ const resolveUniqueCode = (cardData, records) => {
   return generateUniqueCode(records);
 };
 
+// কার্ডের স্টাইল: s = স্কেল (১ = স্ক্রিনে দেখানো কার্ড, বড় সংখ্যা = 4K সেভের জন্য অদৃশ্য কার্ড)
+// সব মাপ একই অনুপাতে বাড়ে, তাই কার্ডের ডিজাইন ও লেআউট হুবহু একই থাকে
+const makeCardStyles = (s, hiRes) =>
+  StyleSheet.create({
+    /* প্রফেশনাল আইডি কার্ড প্রিভিউ স্টাইল ও গ্রাফিক ডিজাইন ব্যাকগ্রাউন্ড */
+    cardContainer: { width: '100%', backgroundColor: '#ffffff', borderWidth: 1.5 * s, borderColor: '#1A365D', borderRadius: 10 * s, padding: 14 * s, marginTop: 10 * s, marginBottom: 20 * s, elevation: hiRes ? 0 : 5, position: 'relative', overflow: 'hidden' },
+    watermarkContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 0 },
+    cardBody: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 2 },
+    logoLayer: { zIndex: 1 },
+    cardBgImage: { width: '80%', height: '100%', opacity: 0.5 },
+    govLogo: { position: 'absolute', top: 3 * s, left: 3 * s, width: 24 * s, height: 24 * s, zIndex: 3 },
+    cardLeftSection: { width: '30%', alignItems: 'center', borderRightWidth: 1 * s, borderRightColor: '#eee', paddingRight: 6 * s },
+    cardUserImage: { width: 60 * s, height: 60 * s, borderRadius: 2 * s, borderWidth: 1 * s, borderColor: '#ccc', marginBottom: 5 * s },
+    cardAddressText: { fontSize: 11 * s, color: '#222', textAlign: 'center', marginTop: 2 * s },
+    cardStatusText: { fontSize: 11 * s, fontWeight: 'bold', color: '#1A365D', textAlign: 'center', marginTop: 4 * s },
+    cardMiddleSection: { width: '39%', paddingLeft: 6 * s, paddingRight: 2 * s },
+    fieldLine: { fontSize: 13 * s, marginVertical: 3 * s },
+    fieldLabel: { color: '#555', fontWeight: 'normal' },
+    fieldValue: { color: '#000', fontWeight: 'bold' },
+    cardRightSection: { width: '31%', alignItems: 'center', justifyContent: 'center', borderLeftWidth: 1 * s, borderLeftColor: '#eee', paddingLeft: 6 * s },
+    qrCodeText: { fontSize: 10 * s, color: '#333', marginTop: 4 * s, letterSpacing: 0.5 * s, textAlign: 'center' },
+    qrPlaceholder: { width: 84 * s, height: 84 * s, alignItems: 'center', justifyContent: 'center' },
+    qrPlaceholderText: { fontSize: 18 * s, color: '#999' },
+  });
+
 export default function CardScreen({ cardData, onBack }) {
   const cardRef = useRef();
+  // 4K সেভের জন্য স্ক্রিনের বাইরে রাখা বড় আকারের কার্ড
+  const hiResCardRef = useRef();
   const initDoneRef = useRef(false);
   const isMountedRef = useRef(true);
 
@@ -70,6 +100,18 @@ export default function CardScreen({ cardData, onBack }) {
   const [uniqueCode, setUniqueCode] = useState(null);
   // সেভ চলাকালীন বারবার চাপ দেওয়া ঠেকানোর জন্য
   const [isSaving, setIsSaving] = useState(false);
+  // স্ক্রিনে দেখানো কার্ডের প্রস্থ (dp) — এখান থেকেই 4K এর স্কেল বের হয়
+  const [cardWidth, setCardWidth] = useState(0);
+
+  // স্ক্রিনে দেখানো কার্ডের স্টাইল (স্কেল ১)
+  const cardStyles = useMemo(() => makeCardStyles(1, false), []);
+
+  // 4K কার্ডের স্কেল: (৩৮৪০ পিক্সেল) ÷ (কার্ডের প্রস্থ × স্ক্রিনের ডেনসিটি)
+  const exportScale = cardWidth > 0 ? EXPORT_WIDTH_PX / (cardWidth * PixelRatio.get()) : 0;
+  const hiResStyles = useMemo(
+    () => (exportScale > 0 ? makeCardStyles(exportScale, true) : null),
+    [exportScale]
+  );
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -134,6 +176,20 @@ export default function CardScreen({ cardData, onBack }) {
     initCard();
   }, [cardData]);
 
+  // 4K (৩৮৪০ পিক্সেল চওড়া) ছবি তৈরি: স্ক্রিনের বাইরের বড় কার্ডটি ক্যাপচার করা হয়,
+  // ফলে লেখা, লোগো, ব্যাকগ্রাউন্ড ও কিউআর কোড সব আসল রেজোলিউশনে রেন্ডার হয় (ছোট ছবি টেনে বড় করা হয় না)
+  const captureHighRes = async () => {
+    if (!hiResCardRef.current || !hiResStyles) {
+      throw new Error('High resolution card is not ready');
+    }
+    // বড় কার্ডের লেআউট ও ছবি পুরোপুরি আঁকা হওয়ার জন্য অল্প অপেক্ষা
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    return captureRef(hiResCardRef, {
+      format: 'png',
+      quality: 1.0,
+    });
+  };
+
   const saveCardToGallery = async () => {
     if (isSaving) return;
 
@@ -144,10 +200,17 @@ export default function CardScreen({ cardData, onBack }) {
 
     setIsSaving(true);
     try {
-      const uri = await captureRef(cardRef, {
-        format: 'png',
-        quality: 1.0,
-      });
+      let uri;
+      try {
+        uri = await captureHighRes();
+      } catch (hiResError) {
+        // কোনো কারণে 4K তৈরি না হলে (যেমন মেমোরি কম) আগের মতো সাধারণ কোয়ালিটিতে সেভ হবে
+        console.warn('4K capture failed, falling back to normal capture:', hiResError);
+        uri = await captureRef(cardRef, {
+          format: 'png',
+          quality: 1.0,
+        });
+      }
 
       const savedUri = await GalleryModule.saveImageToGallery(uri);
 
@@ -196,151 +259,172 @@ export default function CardScreen({ cardData, onBack }) {
 
   const saveDisabled = !uniqueCode || isSaving;
 
-  return (
-    <ScrollView contentContainerStyle={styles.container}>
-      {/* হেডার উইথ ব্যাক আইকন (back_icon.xml) */}
-      <View style={styles.headerRow}>
-        <TouchableOpacity style={styles.topBackBtn} onPress={onBack}>
-          <Image source={{ uri: 'back_icon' }} style={styles.headerIconStyle} />
-        </TouchableOpacity>
-        <Text style={styles.mainTitle}>Digital Smart ID Card</Text>
+  // কার্ডের পুরো ডিজাইন একটি ফাংশনে রাখা হয়েছে, যাতে স্ক্রিনের কার্ড এবং 4K কার্ড দুটোই হুবহু একই ডিজাইনে তৈরি হয়
+  // s = স্কেল, cs = সেই স্কেলের স্টাইল, width = (শুধু 4K কার্ডের জন্য) নির্দিষ্ট প্রস্থ
+  const renderCard = ({ s, cs, width, innerRef, onLayout }) => (
+    <View
+      ref={innerRef}
+      collapsable={false}
+      onLayout={onLayout}
+      style={[cs.cardContainer, width ? { width } : null]}
+    >
+
+      {/* ব্যাকগ্রাউন্ডে স্পষ্ট কালো ও ছাইরঙা (Black & White/Gray) সিকিউরিটি গ্রাফিক ডিজাইন */}
+      <View style={cs.watermarkContainer} pointerEvents="none">
+        <Svg height={180 * s} width={300 * s} viewBox="0 0 300 180" style={{ opacity: 0.28 }}>
+          {/* ব্যাকগ্রাউন্ড জিওমেট্রিক ওয়েভ এবং লাইন ডিজাইন (গাঢ় কালো ও ছাই রঙে) */}
+          <Path fill="none" stroke="#222222" strokeWidth="2" d="M0,20 Q75,80 150,20 T300,20" />
+          <Path fill="none" stroke="#555555" strokeWidth="1.8" d="M0,50 Q75,110 150,50 T300,50" />
+          <Path fill="none" stroke="#222222" strokeWidth="1.5" d="M0,80 Q75,140 150,80 T300,80" />
+          <Path fill="none" stroke="#555555" strokeWidth="1.5" d="M0,110 Q75,170 150,110 T300,110" />
+          <Path fill="none" stroke="#222222" strokeWidth="2" d="M0,140 Q75,200 150,140 T300,140" />
+
+          {/* সাইড সিকিউরিটি সার্কেল ও ডেকোরেটিভ এলিমেন্ট */}
+          <Circle cx="150" cy="90" r="65" stroke="#222222" strokeWidth="1.2" strokeDasharray="5,5" fill="none" />
+          <Circle cx="150" cy="90" r="50" stroke="#555555" strokeWidth="1.2" fill="none" />
+        </Svg>
       </View>
 
-      {/* ক্যাপচার করার জন্য মূল কার্ড ভিউ */}
-      <View ref={cardRef} collapsable={false} style={styles.cardContainer}>
-
-        {/* ব্যাকগ্রাউন্ডে স্পষ্ট কালো ও ছাইরঙা (Black & White/Gray) সিকিউরিটি গ্রাফিক ডিজাইন */}
-        <View style={styles.watermarkContainer} pointerEvents="none">
-          <Svg height="180" width="300" viewBox="0 0 300 180" style={{ opacity: 0.28 }}>
-            {/* ব্যাকগ্রাউন্ড জিওমেট্রিক ওয়েভ এবং লাইন ডিজাইন (গাঢ় কালো ও ছাই রঙে) */}
-            <Path fill="none" stroke="#222222" strokeWidth="2" d="M0,20 Q75,80 150,20 T300,20" />
-            <Path fill="none" stroke="#555555" strokeWidth="1.8" d="M0,50 Q75,110 150,50 T300,50" />
-            <Path fill="none" stroke="#222222" strokeWidth="1.5" d="M0,80 Q75,140 150,80 T300,80" />
-            <Path fill="none" stroke="#555555" strokeWidth="1.5" d="M0,110 Q75,170 150,110 T300,110" />
-            <Path fill="none" stroke="#222222" strokeWidth="2" d="M0,140 Q75,200 150,140 T300,140" />
-
-            {/* সাইড সিকিউরিটি সার্কেল ও ডেকোরেটিভ এলিমেন্ট */}
-            <Circle cx="150" cy="90" r="65" stroke="#222222" strokeWidth="1.2" strokeDasharray="5,5" fill="none" />
-            <Circle cx="150" cy="90" r="50" stroke="#555555" strokeWidth="1.2" fill="none" />
-          </Svg>
-        </View>
-
-        {/* গ্রাফিক ডিজাইনের উপরে (লেয়ার ১), কার্ডের মাঝখানে un.png (drawable/un.png) */}
-        <View style={[styles.watermarkContainer, styles.logoLayer]} pointerEvents="none">
-          <Image
-            source={{ uri: 'un' }}
-            style={styles.cardBgImage}
-            resizeMode="contain"
-          />
-        </View>
-
-        {/* কার্ডের বাম পাশের উপরে ছোট করে gov.png (drawable/gov.png) */}
+      {/* গ্রাফিক ডিজাইনের উপরে (লেয়ার ১), কার্ডের মাঝখানে un.png (drawable/un.png) */}
+      <View style={[cs.watermarkContainer, cs.logoLayer]} pointerEvents="none">
         <Image
-          source={{ uri: 'gov' }}
-          style={styles.govLogo}
+          source={{ uri: 'un' }}
+          style={cs.cardBgImage}
           resizeMode="contain"
-          resizeMethod="resize"
-          fadeDuration={0}
         />
-
-        {/* কার্ডের মূল বডি */}
-        <View style={styles.cardBody}>
-          {/* বাম পাশ: ছবি, তার নিচে গ্রাম, ওয়ার্ড নং, থানা ও জেলা */}
-          <View style={styles.cardLeftSection}>
-            {cardData.image ? (
-              <Image source={{ uri: cardData.image }} style={styles.cardUserImage} resizeMode="cover" />
-            ) : (
-              <View style={[styles.cardUserImage, { backgroundColor: '#ccc' }]} />
-            )}
-            <Text style={styles.cardAddressText}>গ্রাম: {cardData.village}</Text>
-            <Text style={styles.cardAddressText}>ওয়ার্ড নং: {cardData.ward}</Text>
-            <Text style={styles.cardAddressText}>থানা: {cardData.upazila}</Text>
-            <Text style={styles.cardAddressText}>জেলা: {cardData.district}</Text>
-            {cardData.socialStatus ? (
-              <Text style={styles.cardStatusText}>{cardData.socialStatus}</Text>
-            ) : null}
-          </View>
-
-          {/* মাঝের অংশ: নাম, পিতার নাম, মাতার নাম, এনআইডি, লিঙ্গ, পেশা, মোবাইল ও বয়স */}
-          <View style={styles.cardMiddleSection}>
-            {middleFields.map(([label, value]) => (
-              <Text
-                key={label}
-                style={styles.fieldLine}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.6}
-              >
-                <Text style={styles.fieldLabel}>{label}: </Text>
-                <Text style={styles.fieldValue}>{value}</Text>
-              </Text>
-            ))}
-          </View>
-
-          {/* ডান পাশ: বড় কিউআর কোড (ভেতরে ইউনিক সংখ্যা) */}
-          <View style={styles.cardRightSection}>
-            {uniqueCode ? (
-              <>
-                <QRCode value={uniqueCode} size={84} />
-                <Text style={styles.qrCodeText}>{uniqueCode}</Text>
-              </>
-            ) : (
-              <View style={styles.qrPlaceholder}>
-                <Text style={styles.qrPlaceholderText}>...</Text>
-              </View>
-            )}
-          </View>
-        </View>
       </View>
 
-      {/* গ্যালারিতে সেভ করার বাটন (downloadicon.xml সহ) */}
-      <TouchableOpacity
-        style={[styles.saveBtn, saveDisabled && { opacity: 0.6 }]}
-        onPress={saveCardToGallery}
-        disabled={saveDisabled}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Image source={{ uri: 'downloadicon' }} style={styles.btnIconStyle} />
-          <Text style={styles.btnText}>
-            {isSaving ? 'সেভ হচ্ছে...' : 'গ্যালারিতে সেভ করুন'}
-          </Text>
-        </View>
-      </TouchableOpacity>
+      {/* কার্ডের বাম পাশের উপরে ছোট করে gov.png (drawable/gov.png) */}
+      <Image
+        source={{ uri: 'gov' }}
+        style={cs.govLogo}
+        resizeMode="contain"
+        resizeMethod="resize"
+        fadeDuration={0}
+      />
 
-      <TouchableOpacity style={[styles.btn, styles.backBtn]} onPress={onBack}>
-        <Text style={styles.btnText}>ফিরে যান</Text>
-      </TouchableOpacity>
-    </ScrollView>
+      {/* কার্ডের মূল বডি */}
+      <View style={cs.cardBody}>
+        {/* বাম পাশ: ছবি, তার নিচে গ্রাম, ওয়ার্ড নং, থানা ও জেলা */}
+        <View style={cs.cardLeftSection}>
+          {cardData.image ? (
+            <Image source={{ uri: cardData.image }} style={cs.cardUserImage} resizeMode="cover" />
+          ) : (
+            <View style={[cs.cardUserImage, { backgroundColor: '#ccc' }]} />
+          )}
+          <Text style={cs.cardAddressText}>গ্রাম: {cardData.village}</Text>
+          <Text style={cs.cardAddressText}>ওয়ার্ড নং: {cardData.ward}</Text>
+          <Text style={cs.cardAddressText}>থানা: {cardData.upazila}</Text>
+          <Text style={cs.cardAddressText}>জেলা: {cardData.district}</Text>
+          {cardData.socialStatus ? (
+            <Text style={cs.cardStatusText}>{cardData.socialStatus}</Text>
+          ) : null}
+        </View>
+
+        {/* মাঝের অংশ: নাম, পিতার নাম, মাতার নাম, এনআইডি, লিঙ্গ, পেশা, মোবাইল ও বয়স */}
+        <View style={cs.cardMiddleSection}>
+          {middleFields.map(([label, value]) => (
+            <Text
+              key={label}
+              style={cs.fieldLine}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.6}
+            >
+              <Text style={cs.fieldLabel}>{label}: </Text>
+              <Text style={cs.fieldValue}>{value}</Text>
+            </Text>
+          ))}
+        </View>
+
+        {/* ডান পাশ: বড় কিউআর কোড (ভেতরে ইউনিক সংখ্যা) */}
+        <View style={cs.cardRightSection}>
+          {uniqueCode ? (
+            <>
+              <QRCode value={uniqueCode} size={84 * s} />
+              <Text style={cs.qrCodeText}>{uniqueCode}</Text>
+            </>
+          ) : (
+            <View style={cs.qrPlaceholder}>
+              <Text style={cs.qrPlaceholderText}>...</Text>
+            </View>
+          )}
+        </View>
+      </View>
+    </View>
+  );
+
+  return (
+    <View style={styles.root}>
+      <ScrollView contentContainerStyle={styles.container}>
+        {/* হেডার উইথ ব্যাক আইকন (back_icon.xml) */}
+        <View style={styles.headerRow}>
+          <TouchableOpacity style={styles.topBackBtn} onPress={onBack}>
+            <Image source={{ uri: 'back_icon' }} style={styles.headerIconStyle} />
+          </TouchableOpacity>
+          <Text style={styles.mainTitle}>Digital Smart ID Card</Text>
+        </View>
+
+        {/* স্ক্রিনে দেখানো মূল কার্ড ভিউ (4K সেভ ব্যর্থ হলে এটিই ক্যাপচার হবে) */}
+        {renderCard({
+          s: 1,
+          cs: cardStyles,
+          width: null,
+          innerRef: cardRef,
+          onLayout: (e) => {
+            const w = e.nativeEvent.layout.width;
+            if (w > 0 && Math.abs(w - cardWidth) > 0.5) setCardWidth(w);
+          },
+        })}
+
+        {/* গ্যালারিতে সেভ করার বাটন (downloadicon.xml সহ) */}
+        <TouchableOpacity
+          style={[styles.saveBtn, saveDisabled && { opacity: 0.6 }]}
+          onPress={saveCardToGallery}
+          disabled={saveDisabled}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Image source={{ uri: 'downloadicon' }} style={styles.btnIconStyle} />
+            <Text style={styles.btnText}>
+              {isSaving ? 'সেভ হচ্ছে...' : 'গ্যালারিতে সেভ করুন'}
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={[styles.btn, styles.backBtn]} onPress={onBack}>
+          <Text style={styles.btnText}>ফিরে যান</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* 4K সেভের জন্য স্ক্রিনের বাইরে রাখা অদৃশ্য বড় কার্ড (একই ডিজাইন, শুধু বড় মাপে) */}
+      {hiResStyles ? (
+        <View
+          style={styles.offscreen}
+          pointerEvents="none"
+          importantForAccessibility="no-hide-descendants"
+        >
+          {renderCard({
+            s: exportScale,
+            cs: hiResStyles,
+            width: cardWidth * exportScale,
+            innerRef: hiResCardRef,
+            onLayout: undefined,
+          })}
+        </View>
+      ) : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1 },
+  offscreen: { position: 'absolute', top: 0, left: -20000 },
   container: { flexGrow: 1, padding: 15, backgroundColor: '#f8f9fa', alignItems: 'center', paddingTop: 30 },
   headerRow: { flexDirection: 'row', alignItems: 'center', width: '100%', marginBottom: 10 },
   topBackBtn: { padding: 8, backgroundColor: '#e9ecef', borderRadius: 6, marginRight: 15, justifyContent: 'center', alignItems: 'center' },
   headerIconStyle: { width: 22, height: 22, tintColor: '#1A365D' },
   mainTitle: { fontSize: 20, fontWeight: 'bold', color: '#1A365D' },
   errorText: { fontSize: 16, color: 'red', marginBottom: 20 },
-
-  /* প্রফেশনাল আইডি কার্ড প্রিভিউ স্টাইল ও গ্রাফিক ডিজাইন ব্যাকগ্রাউন্ড */
-  cardContainer: { width: '100%', backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: '#1A365D', borderRadius: 10, padding: 14, marginTop: 10, marginBottom: 20, elevation: 5, position: 'relative', overflow: 'hidden' },
-  watermarkContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 0 },
-  cardBody: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 2 },
-  logoLayer: { zIndex: 1 },
-  cardBgImage: { width: '80%', height: '100%', opacity: 0.5 },
-  govLogo: { position: 'absolute', top: 3, left: 3, width: 24, height: 24, zIndex: 3 },
-  cardLeftSection: { width: '30%', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#eee', paddingRight: 6 },
-  cardUserImage: { width: 60, height: 60, borderRadius: 2, borderWidth: 1, borderColor: '#ccc', marginBottom: 5 },
-  cardAddressText: { fontSize: 11, color: '#222', textAlign: 'center', marginTop: 2 },
-  cardStatusText: { fontSize: 11, fontWeight: 'bold', color: '#1A365D', textAlign: 'center', marginTop: 4 },
-  cardMiddleSection: { width: '39%', paddingLeft: 6, paddingRight: 2 },
-  fieldLine: { fontSize: 13, marginVertical: 3 },
-  fieldLabel: { color: '#555', fontWeight: 'normal' },
-  fieldValue: { color: '#000', fontWeight: 'bold' },
-  cardRightSection: { width: '31%', alignItems: 'center', justifyContent: 'center', borderLeftWidth: 1, borderLeftColor: '#eee', paddingLeft: 6 },
-  qrCodeText: { fontSize: 10, color: '#333', marginTop: 4, letterSpacing: 0.5, textAlign: 'center' },
-  qrPlaceholder: { width: 84, height: 84, alignItems: 'center', justifyContent: 'center' },
-  qrPlaceholderText: { fontSize: 18, color: '#999' },
 
   btn: { backgroundColor: '#28a745', paddingVertical: 12, paddingHorizontal: 30, borderRadius: 8, alignItems: 'center', marginTop: 10, width: '100%' },
   saveBtn: { backgroundColor: '#007bff', paddingVertical: 14, paddingHorizontal: 30, borderRadius: 8, alignItems: 'center', width: '100%', marginBottom: 10, elevation: 3 },
