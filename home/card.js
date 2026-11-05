@@ -64,6 +64,36 @@ const resolveUniqueCode = (cardData, records) => {
   return generateUniqueCode(records);
 };
 
+// ছবির চারপাশে ধোঁয়াশা: কোনো প্যাকেজ ছাড়াই, একটার ভেতর একটা সাদা ফ্রেম (রিং) বসানো হয়েছে।
+// বাইরের রিং প্রায় পুরো সাদা, ভেতরের দিকে ক্রমশ স্বচ্ছ — ফলে ছবির কিনারা কার্ডের সাদা ব্যাকগ্রাউন্ডে মিশে যায়
+const HAZE_RINGS = 12;
+const renderPhotoHaze = (s) => {
+  const step = 1 * s;
+  const outerRadius = 12 * s;
+  const rings = [];
+  for (let i = 0; i < HAZE_RINGS; i++) {
+    const t = i / (HAZE_RINGS - 1); // ০ (বাইরে) থেকে ১ (ভেতরে)
+    const alpha = Math.pow(1 - t, 1.6) * 0.97; // মসৃণভাবে কমে আসা স্বচ্ছতা
+    rings.push(
+      <View
+        key={i}
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: i * step,
+          left: i * step,
+          right: i * step,
+          bottom: i * step,
+          borderWidth: step,
+          borderRadius: Math.max(outerRadius - i * step, 0),
+          borderColor: `rgba(255,255,255,${alpha.toFixed(3)})`,
+        }}
+      />
+    );
+  }
+  return rings;
+};
+
 // কার্ডের স্টাইল: s = স্কেল (১ = স্ক্রিনে দেখানো কার্ড, বড় সংখ্যা = 4K সেভের জন্য অদৃশ্য কার্ড)
 // সব মাপ একই অনুপাতে বাড়ে, তাই কার্ডের ডিজাইন ও লেআউট হুবহু একই থাকে
 const makeCardStyles = (s, hiRes) =>
@@ -78,7 +108,9 @@ const makeCardStyles = (s, hiRes) =>
     cardBgImage: { width: '80%', height: '100%', opacity: 0.5 },
     govLogo: { position: 'absolute', top: 3 * s, left: 3 * s, width: 24 * s, height: 24 * s, zIndex: 4 },
     cardLeftSection: { width: '30%', alignItems: 'center', borderRightWidth: 1 * s, borderRightColor: '#eee', paddingRight: 6 * s },
-    cardUserImage: { width: 60 * s, height: 60 * s, borderRadius: 2 * s, borderWidth: 1 * s, borderColor: '#ccc', marginBottom: 5 * s },
+    // ছবির চারপাশে ধোঁয়াশা (ফেদার) ইফেক্টের জন্য ছবির মোড়ক ও ছবি
+    userPhotoWrap: { width: 72 * s, height: 72 * s, borderRadius: 12 * s, overflow: 'hidden', marginBottom: 5 * s, backgroundColor: '#ffffff' },
+    userPhotoFill: { width: '100%', height: '100%' },
     cardAddressText: { fontSize: 11 * s, color: '#222', textAlign: 'center', marginTop: 2 * s },
     cardStatusText: { fontSize: 11 * s, fontWeight: 'bold', color: '#1A365D', textAlign: 'center', marginTop: 4 * s },
     cardMiddleSection: { width: '39%', paddingLeft: 6 * s, paddingRight: 2 * s },
@@ -314,11 +346,15 @@ export default function CardScreen({ cardData, onBack }) {
       <View style={cs.cardBody}>
         {/* বাম পাশ: ছবি, তার নিচে গ্রাম, ওয়ার্ড নং, থানা ও জেলা */}
         <View style={cs.cardLeftSection}>
-          {cardData.image ? (
-            <Image source={{ uri: cardData.image }} style={cs.cardUserImage} resizeMode="cover" />
-          ) : (
-            <View style={[cs.cardUserImage, { backgroundColor: '#ccc' }]} />
-          )}
+          {/* ছবির চারপাশে ধোঁয়াশা/ফেদার ইফেক্ট: ছবির উপরে ক্রমশ স্বচ্ছ সাদা রিং */}
+          <View style={cs.userPhotoWrap}>
+            {cardData.image ? (
+              <Image source={{ uri: cardData.image }} style={cs.userPhotoFill} resizeMode="cover" />
+            ) : (
+              <View style={[cs.userPhotoFill, { backgroundColor: '#ccc' }]} />
+            )}
+            {renderPhotoHaze(s)}
+          </View>
           <Text style={cs.cardAddressText}>গ্রাম: {cardData.village}</Text>
           <Text style={cs.cardAddressText}>ওয়ার্ড নং: {cardData.ward}</Text>
           <Text style={cs.cardAddressText}>থানা: {cardData.upazila}</Text>
