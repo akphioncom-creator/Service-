@@ -71,10 +71,12 @@ const makeCardStyles = (s, hiRes) =>
     /* প্রফেশনাল আইডি কার্ড প্রিভিউ স্টাইল ও গ্রাফিক ডিজাইন ব্যাকগ্রাউন্ড */
     cardContainer: { width: '100%', backgroundColor: '#ffffff', borderWidth: 1.5 * s, borderColor: '#1A365D', borderRadius: 10 * s, padding: 14 * s, marginTop: 10 * s, marginBottom: 20 * s, elevation: hiRes ? 0 : 5, position: 'relative', overflow: 'hidden' },
     watermarkContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 0 },
-    cardBody: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 2 },
-    logoLayer: { zIndex: 1 },
+    cardBody: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 3 },
+    backingLayer: { zIndex: 1 },
+    logoLayer: { zIndex: 2 },
+    cardBgCircle: { height: '100%', aspectRatio: 1, borderRadius: 100000, backgroundColor: '#ffffff' },
     cardBgImage: { width: '80%', height: '100%', opacity: 0.5 },
-    govLogo: { position: 'absolute', top: 3 * s, left: 3 * s, width: 24 * s, height: 24 * s, zIndex: 3 },
+    govLogo: { position: 'absolute', top: 3 * s, left: 3 * s, width: 24 * s, height: 24 * s, zIndex: 4 },
     cardLeftSection: { width: '30%', alignItems: 'center', borderRightWidth: 1 * s, borderRightColor: '#eee', paddingRight: 6 * s },
     cardUserImage: { width: 60 * s, height: 60 * s, borderRadius: 2 * s, borderWidth: 1 * s, borderColor: '#ccc', marginBottom: 5 * s },
     cardAddressText: { fontSize: 11 * s, color: '#222', textAlign: 'center', marginTop: 2 * s },
@@ -285,7 +287,12 @@ export default function CardScreen({ cardData, onBack }) {
         </Svg>
       </View>
 
-      {/* গ্রাফিক ডিজাইনের উপরে (লেয়ার ১), কার্ডের মাঝখানে un.png (drawable/un.png) */}
+      {/* un ছবি যতটুকু জায়গা জুড়ে থাকবে, ততটুকু জায়গার গ্রাফিক ডিজাইন ঢেকে দেওয়ার জন্য কার্ডের মতো সাদা গোলাকার ব্যাকিং (যাতে ডিজাইন ও un ছবি মিলে উল্টাপাল্টা না হয়) */}
+      <View style={[cs.watermarkContainer, cs.backingLayer]} pointerEvents="none">
+        <View style={cs.cardBgCircle} />
+      </View>
+
+      {/* গ্রাফিক ডিজাইনের উপরে (লেয়ার ২), কার্ডের মাঝখানে un.png (drawable/un.png) */}
       <View style={[cs.watermarkContainer, cs.logoLayer]} pointerEvents="none">
         <Image
           source={{ uri: 'un' }}
