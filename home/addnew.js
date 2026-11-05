@@ -5,6 +5,8 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // ছবি ক্রপ করে সেভ করার জন্য (card.js-এ আগে থেকেই ব্যবহার হচ্ছে, তাই নতুন কোনো প্যাকেজ লাগছে না)
 import { captureRef } from 'react-native-view-shot';
+// সার্ভারে নিবন্ধনের তথ্য পাঠানোর ফাইল
+import { sendRegistrationToServer } from './serverApi';
 
 const STORAGE_KEY = 'smart_cards_data';
 
@@ -229,6 +231,8 @@ export default function AddNewScreen({ onNext, onBack }) {
   const [cameraVisible, setCameraVisible] = useState(false);
   const [cameraFacing, setCameraFacing] = useState('back');
   const [isCapturing, setIsCapturing] = useState(false);
+  // সার্ভারে পাঠানোর সময় বাটন বন্ধ রাখতে (দুইবার চাপ ঠেকাতে)
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const cameraRef = useRef(null);
   const { width: winWidth, height: winHeight } = useWindowDimensions();
   // ক্যামেরার মাঝের বর্গাকার ফ্রেমের মাপ: শুধু এই ফ্রেমের ভেতরের অংশটুকুই সেভ হবে
@@ -509,6 +513,7 @@ export default function AddNewScreen({ onNext, onBack }) {
 
   // ডেটা সেভ এবং নেক্সট স্ক্রিনে যাওয়ার ফাংশন
   const handleNext = async () => {
+    if (isSubmitting) return;
     if (
       !name.trim() || !fatherName.trim() || !motherName.trim() || !nid.trim() || !phone.trim() ||
       !dob.trim() || !gender || !maritalStatus || !occupation || !socialStatus || !ward.trim() ||
@@ -529,6 +534,7 @@ export default function AddNewScreen({ onNext, onBack }) {
       return;
     }
 
+    setIsSubmitting(true);
     try {
       const existingData = await AsyncStorage.getItem(STORAGE_KEY);
       let list = existingData ? JSON.parse(existingData) : [];
@@ -558,8 +564,25 @@ export default function AddNewScreen({ onNext, onBack }) {
         village: village.trim(),
         upazila: upazila.trim(),
         district: district.trim(),
-        createdAt: new Date().toLocaleDateString()
+        // কার্ড খোলার (নিবন্ধনের) তারিখ: যে মুহূর্তে তথ্য জমা দেওয়া হচ্ছে সেই সময়, সার্ভারে যাবে
+        createdAt: new Date().toISOString()
       };
+
+      // মূল কাজ: আগে সার্ভারে সংরক্ষণ। সার্ভারে সংরক্ষণ না হলে কার্ড খোলা হবে না
+      const result = await sendRegistrationToServer(newItem);
+
+      if (!result.ok) {
+        if (result.status === 409) {
+          Alert.alert('আগেই নিবন্ধিত', 'এই এনআইডি দিয়ে কার্ড আগেই তৈরি করা আছে।');
+        } else {
+          Alert.alert('সার্ভারে সংরক্ষণ হয়নি', result.message);
+        }
+        return;
+      }
+
+      // সার্ভারের তৈরি ইউনিক কোড ও কার্ড খোলার তারিখ বসিয়ে নেওয়া (কিউআর কোডে এই কোডই যাবে)
+      newItem.uniqueCode = result.card.uniqueCode;
+      newItem.createdAt = result.card.createdAt;
 
       list.unshift(newItem);
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(list));
@@ -570,6 +593,8 @@ export default function AddNewScreen({ onNext, onBack }) {
       }
     } catch (error) {
       Alert.alert('ত্রুটি', 'ডেটা সংরক্ষণ করতে সমস্যা হয়েছে।');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -833,8 +858,16 @@ export default function AddNewScreen({ onNext, onBack }) {
       </View>
 
       {/* নেক্সট বাটন */}
-      <TouchableOpacity style={styles.btn} onPress={handleNext}>
-        <Text style={styles.btnText}>নেক্সট (কার্ড দেখুন)</Text>
+      <TouchableOpacity
+        style={[styles.btn, isSubmitting && { opacity: 0.7 }]}
+        onPress={handleNext}
+        disabled={isSubmitting}
+      >
+        {isSubmitting ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.btnText}>নেক্সট (কার্ড দেখুন)</Text>
+        )}
       </TouchableOpacity>
 
       <TouchableOpacity style={[styles.btn, styles.backBtn]} onPress={onBack}>
