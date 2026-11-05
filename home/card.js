@@ -94,6 +94,15 @@ const renderPhotoHaze = (s) => {
   return rings;
 };
 
+// লেখার কিনারা দিয়ে খুব হালকা সাদা আভা (হ্যালো): পেছনের লোগোর উপরেও অক্ষর স্পষ্ট থাকে, অথচ চোখে আলাদা করে ধরা পড়ে না
+// আভা বাড়াতে চাইলে HALO_RADIUS বাড়ান, কমাতে চাইলে কমান
+const HALO_RADIUS = 4;
+const makeHalo = (s) => ({
+  textShadowColor: '#ffffff',
+  textShadowOffset: { width: 0, height: 0 },
+  textShadowRadius: HALO_RADIUS * s,
+});
+
 // কার্ডের স্টাইল: s = স্কেল (১ = স্ক্রিনে দেখানো কার্ড, বড় সংখ্যা = 4K সেভের জন্য অদৃশ্য কার্ড)
 // সব মাপ একই অনুপাতে বাড়ে, তাই কার্ডের ডিজাইন ও লেআউট হুবহু একই থাকে
 const makeCardStyles = (s, hiRes) =>
@@ -111,14 +120,14 @@ const makeCardStyles = (s, hiRes) =>
     // ছবির চারপাশে ধোঁয়াশা (ফেদার) ইফেক্টের জন্য ছবির মোড়ক ও ছবি
     userPhotoWrap: { width: 52 * s, height: 52 * s, borderRadius: 9 * s, overflow: 'hidden', marginTop: 12 * s, marginBottom: 5 * s, backgroundColor: '#ffffff' },
     userPhotoFill: { width: '100%', height: '100%' },
-    cardAddressText: { fontSize: 11 * s, color: '#222', textAlign: 'center', marginTop: 2 * s },
-    cardStatusText: { fontSize: 11 * s, fontWeight: 'bold', color: '#1A365D', textAlign: 'center', marginTop: 4 * s },
+    cardAddressText: { fontSize: 11 * s, color: '#222', textAlign: 'center', marginTop: 2 * s, ...makeHalo(s) },
+    cardStatusText: { fontSize: 11 * s, fontWeight: 'bold', color: '#1A365D', textAlign: 'center', marginTop: 4 * s, ...makeHalo(s) },
     cardMiddleSection: { width: '39%', paddingLeft: 6 * s, paddingRight: 2 * s },
-    fieldLine: { fontSize: 13 * s, marginVertical: 3 * s },
+    fieldLine: { fontSize: 13 * s, marginVertical: 3 * s, ...makeHalo(s) },
     fieldLabel: { color: '#555', fontWeight: 'normal' },
     fieldValue: { color: '#000', fontWeight: 'bold' },
     cardRightSection: { width: '31%', alignItems: 'center', justifyContent: 'center', borderLeftWidth: 1 * s, borderLeftColor: '#eee', paddingLeft: 6 * s },
-    qrCodeText: { fontSize: 10 * s, color: '#333', marginTop: 4 * s, letterSpacing: 0.5 * s, textAlign: 'center' },
+    qrCodeText: { fontSize: 10 * s, color: '#333', marginTop: 4 * s, letterSpacing: 0.5 * s, textAlign: 'center', ...makeHalo(s) },
     qrPlaceholder: { width: 84 * s, height: 84 * s, alignItems: 'center', justifyContent: 'center' },
     qrPlaceholderText: { fontSize: 18 * s, color: '#999' },
   });
