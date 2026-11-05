@@ -1,10 +1,59 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, Image, ScrollView, Keyboard, Platform, Modal, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, Image, ScrollView, Keyboard, Platform, Modal, ActivityIndicator, Animated, Easing, useWindowDimensions } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+// ছবি ক্রপ করে সেভ করার জন্য (card.js-এ আগে থেকেই ব্যবহার হচ্ছে, তাই নতুন কোনো প্যাকেজ লাগছে না)
+import { captureRef } from 'react-native-view-shot';
 
 const STORAGE_KEY = 'smart_cards_data';
+
+// ক্রপ করা ছবির মাপ (dp): ক্যামেরার ফ্রেমের ভেতরের অংশ এই মাপের বর্গাকার ছবি হয়ে সেভ হবে
+const CROP_DP = 480;
+
+// ক্যামেরা ঘোরানোর আইকন: লোডিং-এর মতো গোল রিং ও তীরের মাথা — কোনো প্যাকেজ ছাড়া শুধু View দিয়ে আঁকা
+function RotateIcon({ size = 30, color = '#fff' }) {
+  const w = Math.max(2, Math.round(size * 0.11));
+  const hs = Math.round(size * 0.4);
+  const r = size / 2 - w / 2;
+  const c = size / 2;
+  const theta = (315 * Math.PI) / 180; // রিংয়ের ফাঁকের বাম প্রান্ত (১০:৩০ এর দিক)
+  const px = c + r * Math.sin(theta);
+  const py = c - r * Math.cos(theta);
+
+  return (
+    <View style={{ width: size, height: size }}>
+      {/* গোল রিং, উপরের অংশে ফাঁক */}
+      <View
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          borderWidth: w,
+          borderColor: color,
+          borderTopColor: 'transparent',
+        }}
+      />
+      {/* ফাঁকের দিকে মুখ করা তীরের মাথা (ত্রিভুজ) */}
+      <View
+        style={{
+          position: 'absolute',
+          left: px - hs / 2,
+          top: py - hs / 2,
+          width: 0,
+          height: 0,
+          borderLeftWidth: hs / 2,
+          borderRightWidth: hs / 2,
+          borderBottomWidth: hs,
+          borderLeftColor: 'transparent',
+          borderRightColor: 'transparent',
+          borderBottomColor: color,
+          transform: [{ rotate: '45deg' }],
+        }}
+      />
+    </View>
+  );
+}
 
 // ড্রপডাউনের অপশনসমূহ
 const OCCUPATION_OPTIONS = ['কৃষক', 'শ্রমিক', 'ব্যবসায়ী', 'গৃহিণী', 'অন্যান্য'];
@@ -181,6 +230,16 @@ export default function AddNewScreen({ onNext, onBack }) {
   const [cameraFacing, setCameraFacing] = useState('back');
   const [isCapturing, setIsCapturing] = useState(false);
   const cameraRef = useRef(null);
+  const { width: winWidth, height: winHeight } = useWindowDimensions();
+  // ক্যামেরার মাঝের বর্গাকার ফ্রেমের মাপ: শুধু এই ফ্রেমের ভেতরের অংশটুকুই সেভ হবে
+  const frameSize = Math.min(winWidth * 0.88, winHeight * 0.5);
+  // তোলা ছবি ক্রপ করার কাজ (ছবির তথ্য থাকলে অদৃশ্য ভিউতে বসিয়ে মাঝের বর্গ অংশ ক্যাপচার হয়)
+  const [cropJob, setCropJob] = useState(null);
+  const cropRef = useRef(null);
+  const cropDoneRef = useRef(false);
+  // ক্যামেরা ঘোরানোর আইকনের ঘূর্ণন অ্যানিমেশন
+  const spinValue = useRef(new Animated.Value(0)).current;
+  const spinCountRef = useRef(0);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [name, setName] = useState('');
   const [fatherName, setFatherName] = useState('');
@@ -368,23 +427,53 @@ export default function AddNewScreen({ onNext, onBack }) {
     setCameraVisible(false);
   };
 
-  // ক্যামেরার মাঝের বাটনে চাপ দিলে ছবি তোলা হবে
+  // ছবির আসল মাপ জানা (ক্রপের হিসাবের জন্য)
+  const getImageSize = (uri) =>
+    new Promise((resolve, reject) => {
+      Image.getSize(uri, (w, h) => resolve({ w, h }), reject);
+    });
+
+  // ক্যামেরার মাঝের বাটনে চাপ দিলে ছবি তোলা হবে।
+  // পুরো ছবি সেভ হয় না: ক্যামেরার মাঝের বর্গাকার ফ্রেমে যতটুকু দেখা যাচ্ছিল শুধু ততটুকু কেটে সেভ হয়
   const takePicture = async () => {
     if (!cameraRef.current || isCapturing) return;
 
     setIsCapturing(true);
     try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.8 });
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.9 });
       if (photo && photo.uri) {
-        setImage(photo.uri);
-        setCameraVisible(false);
+        const size = await getImageSize(photo.uri);
+        cropDoneRef.current = false;
+        // এখান থেকে ক্রপের কাজ handleCropImageLoaded এ চলবে; সেখানে শেষ হলে isCapturing বন্ধ হবে
+        setCropJob({ uri: photo.uri, w: size.w, h: size.h });
+        return;
       }
+      setIsCapturing(false);
     } catch (error) {
       console.error('Camera capture error:', error);
       Alert.alert('ত্রুটি', 'ছবি তুলতে সমস্যা হয়েছে।');
-    } finally {
       setIsCapturing(false);
     }
+  };
+
+  // অদৃশ্য ভিউতে ছবি আঁকা হয়ে গেলে মাঝের বর্গ অংশটুকু ক্যাপচার করে ফর্মের ছবি হিসেবে বসানো
+  const handleCropImageLoaded = () => {
+    if (cropDoneRef.current || !cropJob) return;
+    cropDoneRef.current = true;
+
+    setTimeout(async () => {
+      try {
+        const croppedUri = await captureRef(cropRef, { format: 'jpg', quality: 0.9 });
+        setImage(croppedUri);
+        setCameraVisible(false);
+      } catch (error) {
+        console.error('Crop error:', error);
+        Alert.alert('ত্রুটি', 'ছবি কেটে সংরক্ষণ করতে সমস্যা হয়েছে, আবার চেষ্টা করুন।');
+      } finally {
+        setCropJob(null);
+        setIsCapturing(false);
+      }
+    }, 120);
   };
 
   // ক্যামেরার বাম পাশের গ্যালারি বাটন: ক্যামেরা বন্ধ করে গ্যালারি খোলা হবে
@@ -398,7 +487,17 @@ export default function AddNewScreen({ onNext, onBack }) {
 
   const toggleCameraFacing = () => {
     setCameraFacing((prev) => (prev === 'back' ? 'front' : 'back'));
+    // প্রতিবার চাপলে আইকন ১৮০° ঘুরবে
+    spinCountRef.current += 1;
+    Animated.timing(spinValue, {
+      toValue: spinCountRef.current,
+      duration: 400,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
   };
+
+  const spin = spinValue.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
 
   // বৈবাহিক অবস্থা পরিবর্তন: "বিবাহিত" ছাড়া অন্য কিছু হলে স্বামী/স্ত্রীর এনআইডি মুছে যাবে
   const handleMaritalSelect = (option) => {
@@ -488,7 +587,10 @@ export default function AddNewScreen({ onNext, onBack }) {
           {image ? (
             <Image source={{ uri: image }} style={styles.previewImage} />
           ) : (
-            <Text style={styles.imagePickerText}>📷 ছবি তুলুন</Text>
+            <View style={{ alignItems: 'center' }}>
+              <Image source={{ uri: 'ic_camera' }} style={styles.imagePickerIcon} resizeMode="contain" />
+              <Text style={styles.imagePickerText}>ছবি তুলুন</Text>
+            </View>
           )}
         </TouchableOpacity>
       </View>
@@ -739,31 +841,47 @@ export default function AddNewScreen({ onNext, onBack }) {
         <Text style={styles.btnText}>ফিরে যান</Text>
       </TouchableOpacity>
 
-      {/* ক্যামেরা স্ক্রিন: মাঝে ছবি তোলার বাটন, বামে গ্যালারি, ডানে ক্যামেরা পাল্টানো */}
+      {/* ক্যামেরা স্ক্রিন: মাঝে বর্গাকার ফ্রেম (শুধু এটুকুই সেভ হবে), নিচে বামে গ্যালারি, মাঝে ছবি তোলা, ডানে ক্যামেরা ঘোরানো */}
       <Modal
         visible={cameraVisible}
         animationType="slide"
         onRequestClose={closeCamera}
       >
         <View style={styles.cameraScreen}>
-          {cameraVisible && (
-            <CameraView
-              ref={cameraRef}
-              style={styles.cameraView}
-              facing={cameraFacing}
-            />
-          )}
+          {/* উপরে বন্ধ করার বাটন ও শিরোনাম */}
+          <View style={styles.cameraTopBar}>
+            <TouchableOpacity style={styles.cameraCloseBtn} onPress={closeCamera}>
+              <Text style={styles.cameraCloseText}>✕</Text>
+            </TouchableOpacity>
+            <Text style={styles.cameraTitle}>ছবি তুলুন</Text>
+          </View>
 
-          {/* উপরে বন্ধ করার বাটন */}
-          <TouchableOpacity style={styles.cameraCloseBtn} onPress={closeCamera}>
-            <Text style={styles.cameraCloseText}>✕</Text>
-          </TouchableOpacity>
+          {/* মাঝের অংশ: ক্যামেরার ফ্রেম ও নির্দেশনা */}
+          <View style={styles.cameraMiddle}>
+            <View style={[styles.cameraFrame, { width: frameSize, height: frameSize }]}>
+              {cameraVisible && (
+                <CameraView
+                  ref={cameraRef}
+                  style={styles.cameraView}
+                  facing={cameraFacing}
+                />
+              )}
+              {/* ফ্রেমের চার কোণের দাগ: ছবির যে অংশ সেভ হবে তা বোঝানোর ইশারা */}
+              <View style={[styles.corner, styles.cornerTL]} pointerEvents="none" />
+              <View style={[styles.corner, styles.cornerTR]} pointerEvents="none" />
+              <View style={[styles.corner, styles.cornerBL]} pointerEvents="none" />
+              <View style={[styles.corner, styles.cornerBR]} pointerEvents="none" />
+            </View>
+            <Text style={styles.cameraHint}>
+              মুখ ফ্রেমের ভেতরে রাখুন। ফ্রেমের ভেতরের অংশটুকুই সেভ হবে।
+            </Text>
+          </View>
 
           {/* নিচের বাটন বার */}
           <View style={styles.cameraBottomBar}>
-            {/* বাম: গ্যালারি থেকে ছবি আপলোড */}
+            {/* বাম: স্টোরেজ থেকে ছবি আপলোড (add_photo.xml) */}
             <TouchableOpacity style={styles.cameraSideBtn} onPress={openGalleryFromCamera}>
-              <Text style={styles.cameraSideIcon}>🖼️</Text>
+              <Image source={{ uri: 'add_photo' }} style={styles.cameraSideIconImg} resizeMode="contain" />
               <Text style={styles.cameraSideText}>গ্যালারি</Text>
             </TouchableOpacity>
 
@@ -781,12 +899,49 @@ export default function AddNewScreen({ onNext, onBack }) {
               )}
             </TouchableOpacity>
 
-            {/* ডান: সামনে/পিছনের ক্যামেরা পাল্টানো */}
-            <TouchableOpacity style={styles.cameraSideBtn} onPress={toggleCameraFacing}>
-              <Text style={styles.cameraSideIcon}>🔄</Text>
+            {/* ডান: সামনে/পিছনের ক্যামেরা পাল্টানো (নিজে আঁকা ঘূর্ণন আইকন) */}
+            <TouchableOpacity
+              style={styles.cameraSideBtn}
+              onPress={toggleCameraFacing}
+              disabled={isCapturing}
+            >
+              <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                <RotateIcon size={30} color="#fff" />
+              </Animated.View>
               <Text style={styles.cameraSideText}>ক্যামেরা</Text>
             </TouchableOpacity>
           </View>
+
+          {/* অদৃশ্য ক্রপ ভিউ: তোলা ছবির মাঝের বর্গ অংশ এখানে বসিয়ে ক্যাপচার করা হয় (স্ক্রিনের বাইরে থাকে) */}
+          {cropJob ? (
+            <View style={styles.cropOffscreen} pointerEvents="none">
+              <View
+                ref={cropRef}
+                collapsable={false}
+                style={{ width: CROP_DP, height: CROP_DP, overflow: 'hidden', backgroundColor: '#000' }}
+              >
+                {(() => {
+                  const scale = CROP_DP / Math.min(cropJob.w, cropJob.h);
+                  const dw = cropJob.w * scale;
+                  const dh = cropJob.h * scale;
+                  return (
+                    <Image
+                      source={{ uri: cropJob.uri }}
+                      fadeDuration={0}
+                      onLoad={handleCropImageLoaded}
+                      style={{
+                        position: 'absolute',
+                        width: dw,
+                        height: dh,
+                        left: -(dw - CROP_DP) / 2,
+                        top: -(dh - CROP_DP) / 2,
+                      }}
+                    />
+                  );
+                })()}
+              </View>
+            </View>
+          ) : null}
         </View>
       </Modal>
     </ScrollView>
@@ -803,15 +958,27 @@ const styles = StyleSheet.create({
 
   /* ক্যামেরা স্ক্রিন */
   cameraScreen: { flex: 1, backgroundColor: '#000' },
-  cameraView: { flex: 1 },
-  cameraCloseBtn: { position: 'absolute', top: 40, left: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  cameraTopBar: { paddingTop: 40, paddingHorizontal: 20, paddingBottom: 10, flexDirection: 'row', alignItems: 'center' },
+  cameraCloseBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
   cameraCloseText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
-  cameraBottomBar: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingTop: 20, paddingBottom: 35, paddingHorizontal: 25, backgroundColor: 'rgba(0,0,0,0.45)', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  cameraTitle: { flex: 1, textAlign: 'center', color: '#fff', fontSize: 16, fontWeight: 'bold', marginRight: 40 },
+  cameraMiddle: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  cameraFrame: { backgroundColor: '#111', overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)' },
+  cameraView: { width: '100%', height: '100%' },
+  corner: { position: 'absolute', width: 30, height: 30, borderColor: '#fff' },
+  cornerTL: { top: 10, left: 10, borderTopWidth: 4, borderLeftWidth: 4 },
+  cornerTR: { top: 10, right: 10, borderTopWidth: 4, borderRightWidth: 4 },
+  cornerBL: { bottom: 10, left: 10, borderBottomWidth: 4, borderLeftWidth: 4 },
+  cornerBR: { bottom: 10, right: 10, borderBottomWidth: 4, borderRightWidth: 4 },
+  cameraHint: { color: '#fff', fontSize: 13, textAlign: 'center', marginTop: 14, paddingHorizontal: 30, opacity: 0.9 },
+  cameraBottomBar: { paddingTop: 20, paddingBottom: 35, paddingHorizontal: 25, backgroundColor: '#000', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   cameraSideBtn: { width: 70, alignItems: 'center', justifyContent: 'center' },
-  cameraSideIcon: { fontSize: 30 },
+  cameraSideIconImg: { width: 30, height: 30, tintColor: '#fff' },
   cameraSideText: { color: '#fff', fontSize: 12, marginTop: 4 },
   shutterOuter: { width: 76, height: 76, borderRadius: 38, backgroundColor: '#fff', borderWidth: 4, borderColor: '#ccc', justifyContent: 'center', alignItems: 'center' },
   shutterInner: { width: 58, height: 58, borderRadius: 29, backgroundColor: '#fff', borderWidth: 2, borderColor: '#1A365D' },
+  cropOffscreen: { position: 'absolute', top: 0, left: -20000 },
+  imagePickerIcon: { width: 28, height: 28, tintColor: '#007bff', marginBottom: 4 },
   inputGroup: { marginBottom: 12 },
   label: { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 5 },
   input: { height: 48, borderWidth: 1, borderColor: '#ced4da', borderRadius: 8, paddingHorizontal: 15, backgroundColor: '#fff', fontSize: 16, color: '#000' },
