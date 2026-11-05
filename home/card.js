@@ -414,7 +414,7 @@ export default function CardScreen({ cardData, onBack }) {
         <View style={cs.cardRightSection}>
           {uniqueCode ? (
             <>
-              <Text style={cs.createdDateText}>তারিখ: {formatCreatedDate(createdAt)}</Text>
+              <Text style={cs.createdDateText}>{'কার্ড তৈরির তারিখ:\n'}{formatCreatedDate(createdAt)}</Text>
               <QRCode value={uniqueCode} size={84 * s} />
               <Text style={cs.qrCodeText}>{uniqueCode}</Text>
             </>
