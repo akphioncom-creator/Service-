@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Image, Alert, ScrollView, NativeModules } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { captureRef } from 'react-native-view-shot';
+import Svg, { Path, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { GalleryModule } = NativeModules;
@@ -208,7 +209,23 @@ export default function CardScreen({ cardData, onBack }) {
       {/* ক্যাপচার করার জন্য মূল কার্ড ভিউ */}
       <View ref={cardRef} collapsable={false} style={styles.cardContainer}>
 
-        {/* কার্ডের মাঝখানে ব্যাকগ্রাউন্ড হিসেবে un.png (drawable/un.png) */}
+        {/* ব্যাকগ্রাউন্ডে স্পষ্ট কালো ও ছাইরঙা (Black & White/Gray) সিকিউরিটি গ্রাফিক ডিজাইন */}
+        <View style={styles.watermarkContainer} pointerEvents="none">
+          <Svg height="180" width="300" viewBox="0 0 300 180" style={{ opacity: 0.28 }}>
+            {/* ব্যাকগ্রাউন্ড জিওমেট্রিক ওয়েভ এবং লাইন ডিজাইন (গাঢ় কালো ও ছাই রঙে) */}
+            <Path fill="none" stroke="#222222" strokeWidth="2" d="M0,20 Q75,80 150,20 T300,20" />
+            <Path fill="none" stroke="#555555" strokeWidth="1.8" d="M0,50 Q75,110 150,50 T300,50" />
+            <Path fill="none" stroke="#222222" strokeWidth="1.5" d="M0,80 Q75,140 150,80 T300,80" />
+            <Path fill="none" stroke="#555555" strokeWidth="1.5" d="M0,110 Q75,170 150,110 T300,110" />
+            <Path fill="none" stroke="#222222" strokeWidth="2" d="M0,140 Q75,200 150,140 T300,140" />
+
+            {/* সাইড সিকিউরিটি সার্কেল ও ডেকোরেটিভ এলিমেন্ট */}
+            <Circle cx="150" cy="90" r="65" stroke="#222222" strokeWidth="1.2" strokeDasharray="5,5" fill="none" />
+            <Circle cx="150" cy="90" r="50" stroke="#555555" strokeWidth="1.2" fill="none" />
+          </Svg>
+        </View>
+
+        {/* আগের ব্যাকগ্রাউন্ডের উপরে, কার্ডের মাঝখানে un.png (drawable/un.png) */}
         <View style={styles.watermarkContainer} pointerEvents="none">
           <Image
             source={{ uri: 'un' }}
@@ -308,8 +325,8 @@ const styles = StyleSheet.create({
   watermarkContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 0 },
   cardBody: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 1 },
   cardBgImage: { width: '80%', height: '100%', opacity: 0.25 },
-  govLogo: { position: 'absolute', top: 6, left: 6, width: 26, height: 26, zIndex: 2 },
-  cardLeftSection: { width: '30%', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#eee', paddingRight: 6, paddingTop: 18 },
+  govLogo: { position: 'absolute', top: 4, left: 4, width: 20, height: 20, zIndex: 2 },
+  cardLeftSection: { width: '30%', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#eee', paddingRight: 6 },
   cardUserImage: { width: 60, height: 60, borderRadius: 2, borderWidth: 1, borderColor: '#ccc', marginBottom: 5 },
   cardAddressText: { fontSize: 11, color: '#222', textAlign: 'center', marginTop: 2 },
   cardStatusText: { fontSize: 11, fontWeight: 'bold', color: '#1A365D', textAlign: 'center', marginTop: 4 },
