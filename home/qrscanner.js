@@ -2,19 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { CameraView, Camera } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// কার্ড সার্ভারে যাচাই হয়: সার্ভারই ঠিক করে কার্ড নিবন্ধিত কিনা এবং আগে স্ক্যান হয়েছে কিনা
+import { scanCardOnServer, fetchScanSummary } from './serverApi';
 
-// কার্ড ও পারসন লিস্টের সাথে একই স্টোরেজ কী (key)
-const STORAGE_KEY = 'persistent_numbers_data';
 const IDLE_MESSAGE = 'স্ক্যান করার জন্য ক্যামেরা নির্দেশ করুন...';
-
-// স্টোরেজ থেকে সব রেজিস্টার্ড ব্যক্তির তালিকা পড়া (পড়তে ব্যর্থ হলে ত্রুটি ছোড়ে, যাতে ভুলে "নিবন্ধিত নয়" দেখানো না হয়)
-const readAllRecords = async () => {
-  const data = await AsyncStorage.getItem(STORAGE_KEY);
-  if (!data) return [];
-  const parsed = JSON.parse(data);
-  return Array.isArray(parsed) ? parsed : [];
-};
+// সার্ভারে সমস্যা হলে এতক্ষণ (মিলিসেকেন্ড) পর আবার স্ক্যান করা যাবে (ক্যামেরা একই কোড বারবার পড়ে, তাই সঙ্গে সঙ্গে নয়)
+const RETRY_DELAY_MS = 2500;
 
 // ISO সময়কে পড়ার উপযোগী তারিখ-সময়ে রূপান্তর (দিন/মাস/বছর ঘণ্টা:মিনিট)
 const formatDateTime = (iso) => {
@@ -33,6 +26,9 @@ export default function QRScannerScreen({ onBack }) {
   // স্ক্যান ফলাফল: { status: 'success' | 'duplicate' | 'notfound', person, code }
   const [scanResult, setScanResult] = useState(null);
 
+  // সার্ভারের হিসাব: { total: মোট কার্ড, scanned: স্ক্যান হয়েছে } (সব স্ক্যান হলে নতুন দফার বার্তা দেখানোর জন্য)
+  const [summary, setSummary] = useState(null);
+
   // ক্যামেরা একই কোড বারবার পড়ে, তাই একবার প্রসেস শুরু হলে লক রাখা হয়
   const processingRef = useRef(false);
 
@@ -43,49 +39,51 @@ export default function QRScannerScreen({ onBack }) {
     })();
   }, []);
 
-  // স্ক্যান করা কোড যাচাই করা:
-  // - তালিকায় নেই        => লাল ক্রস
+  // খুলতেই সার্ভার থেকে স্ক্যানের অগ্রগতি আনা (না পারলে চুপচাপ বাদ)
+  useEffect(() => {
+    (async () => {
+      const result = await fetchScanSummary();
+      if (result.ok) setSummary({ total: result.total, scanned: result.scanned });
+    })();
+  }, []);
+
+  // স্ক্যান করা কোড সার্ভারে যাচাই করা:
+  // - সার্ভারে নেই           => লাল ক্রস
   // - আছে, আগে স্ক্যান হয়েছে => লাল ক্রস
-  // - আছে, প্রথমবার        => সবুজ টিক + "স্ক্যান হয়েছে" হিসেবে সেভ
+  // - আছে, প্রথমবার           => সবুজ টিক (সার্ভারেই "স্ক্যান হয়েছে" চিহ্ন বসে যায়)
+  // - সার্ভারের সাথে যোগাযোগ না হলে ফলাফল দেখানো হয় না; কারণ বলে কিছুক্ষণ পর আবার স্ক্যান করা যায়
   const processScan = async (rawData) => {
     if (processingRef.current) return;
     processingRef.current = true;
 
     try {
       const code = String(rawData === undefined || rawData === null ? '' : rawData).trim();
-      const records = await readAllRecords();
 
-      const index = code
-        ? records.findIndex((r) => r.uniqueCode && String(r.uniqueCode) === code)
-        : -1;
-
-      if (index < 0) {
+      // সার্ভারের কোড ১২ ডিজিটের সংখ্যা; অন্য কিছু হলে সার্ভারে না গিয়েই বাদ
+      if (!/^\d{12,13}$/.test(code)) {
         setScanResult({ status: 'notfound', code });
         return;
       }
 
-      const person = records[index];
+      setScannedData('সার্ভারে যাচাই হচ্ছে...');
+      const result = await scanCardOnServer(code);
 
-      if (person.scanned) {
-        setScanResult({ status: 'duplicate', person, code });
+      if (!result.ok) {
+        setScannedData('ত্রুটি: ' + result.message);
+        setTimeout(() => {
+          processingRef.current = false;
+        }, RETRY_DELAY_MS);
         return;
       }
 
-      const updatedPerson = {
-        ...person,
-        scanned: true,
-        scannedAt: new Date().toISOString(),
-      };
-      records[index] = updatedPerson;
-
-      // সেভ সফল হলেই কেবল টিক দেখানো হবে
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-
-      setScanResult({ status: 'success', person: updatedPerson, code });
+      if (result.summary) setSummary({ total: result.summary.total, scanned: result.summary.scanned });
+      setScanResult({ status: result.status, person: result.card, code });
     } catch (error) {
       console.error('Scan process error:', error);
       setScannedData('ত্রুটি: কার্ড যাচাই করার সময় সমস্যা হয়েছে। আবার চেষ্টা করুন।');
-      processingRef.current = false;
+      setTimeout(() => {
+        processingRef.current = false;
+      }, RETRY_DELAY_MS);
     }
   };
 
@@ -227,9 +225,16 @@ export default function QRScannerScreen({ onBack }) {
                 {resultPerson.phone ? (
                   <Text style={styles.personDetail}>মোবাইল: {resultPerson.phone}</Text>
                 ) : null}
-                {resultPerson.district || resultPerson.upazila || resultPerson.village ? (
+                {resultPerson.district || resultPerson.upazila || resultPerson.areaName || resultPerson.village ? (
                   <Text style={styles.personDetail} numberOfLines={1}>
-                    {[resultPerson.district, resultPerson.upazila, resultPerson.village ? 'গ্রাম: ' + resultPerson.village : '']
+                    {[
+                      resultPerson.district,
+                      resultPerson.upazila,
+                      resultPerson.areaName || resultPerson.village
+                        ? (resultPerson.areaType === 'পৌরসভা' ? 'পৌরসভা: ' : 'ইউনিয়ন: ') +
+                          (resultPerson.areaName || resultPerson.village)
+                        : '',
+                    ]
                       .filter(Boolean)
                       .join(', ')}
                   </Text>
@@ -242,6 +247,18 @@ export default function QRScannerScreen({ onBack }) {
       ) : (
         <Text style={styles.resultText}>{scannedData}</Text>
       )}
+
+      {/* স্ক্যানের অগ্রগতি; সব কার্ড স্ক্যান হয়ে গেলে নতুন দফার (রিস্টার্ট) নির্দেশ */}
+      {summary && summary.total > 0 ? (
+        <View style={styles.summaryBox}>
+          <Text style={styles.summaryText}>স্ক্যান হয়েছে: {summary.scanned} / {summary.total}</Text>
+          {summary.scanned >= summary.total ? (
+            <Text style={styles.summaryDone}>
+              সবগুলো কার্ড স্ক্যান হয়ে গেছে। আবার স্ক্যান করতে হলে পারসন লিস্ট থেকে রিস্টার্ট দিন।
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
 
       {/* ক্যামেরা মোডে ফলাফল দেখানোর পর পরবর্তী কার্ড স্ক্যানের বাটন */}
       {scanResult && !selectedImage && (
@@ -301,6 +318,10 @@ const styles = StyleSheet.create({
   personName: { fontSize: 14, fontWeight: 'bold', color: '#333' },
   personDetail: { fontSize: 12, color: '#666', marginTop: 1 },
   personCode: { fontSize: 11, color: '#1A365D', marginTop: 3, fontWeight: 'bold', letterSpacing: 0.5 },
+
+  summaryBox: { width: '100%', alignItems: 'center', marginBottom: 10 },
+  summaryText: { fontSize: 13, fontWeight: 'bold', color: '#1A365D' },
+  summaryDone: { fontSize: 12, color: '#dc3545', textAlign: 'center', marginTop: 3, paddingHorizontal: 10 },
 
   nextScanBtn: { backgroundColor: '#007bff', paddingVertical: 10, paddingHorizontal: 25, borderRadius: 8, width: '100%', alignItems: 'center', marginBottom: 8, elevation: 2 },
   photoUploadBtn: { flexDirection: 'row', backgroundColor: '#17a2b8', paddingVertical: 10, paddingHorizontal: 25, borderRadius: 8, width: '100%', justifyContent: 'center', alignItems: 'center', marginBottom: 8, elevation: 2 },
