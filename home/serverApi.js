@@ -1,6 +1,6 @@
 // সার্ভারের সাথে যোগাযোগের ফাইল: পাসওয়ার্ড দিয়ে লগইন, টোকেন জমানো, নিবন্ধনের তথ্য পাঠানো, তালিকা আনা
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import API from '../apiConfig';
+import API from './apiConfig';
 
 const TOKEN_KEY = 'server_auth_token';
 const TIMEOUT_MS = 25000;
@@ -90,14 +90,7 @@ async function authedFetch(url, options = {}) {
   return res;
 }
 
-const guessMime = (uri) => {
-  const lower = String(uri).toLowerCase();
-  if (lower.endsWith('.png')) return 'image/png';
-  if (lower.endsWith('.webp')) return 'image/webp';
-  return 'image/jpeg';
-};
-
-// নিবন্ধনের তথ্য (ও ছবি) সার্ভারে পাঠানো
+// নিবন্ধনের তথ্য সার্ভারে পাঠানো — শুধু লেখা (JSON); ছবি বা অন্য কোনো ফাইল পাঠানো হয় না, ছবি শুধু ফোনে থাকে
 // সফল হলে: { ok: true, card }   ব্যর্থ হলে: { ok: false, message, status?, uniqueCode? }
 export async function sendRegistrationToServer(item) {
   try {
@@ -123,14 +116,11 @@ export async function sendRegistrationToServer(item) {
       createdAt: item.createdAt, // কার্ড খোলার (নিবন্ধনের) তারিখ ও সময়
     };
 
-    // ছবি ও তথ্য একসাথে (multipart); Content-Type নিজে বসানো যাবে না, নাহলে সীমানা (boundary) হারায়
-    const form = new FormData();
-    form.append('data', JSON.stringify(payload));
-    if (item.image) {
-      form.append('photo', { uri: item.image, name: 'photo.jpg', type: guessMime(item.image) });
-    }
-
-    const res = await authedFetch(API.cards(), { method: 'POST', body: form });
+    const res = await authedFetch(API.cards(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
     const json = await res.json().catch(() => ({}));
 
     if (res.ok && json.card) {
@@ -144,11 +134,7 @@ export async function sendRegistrationToServer(item) {
     return { ok: false, status: res.status, message, uniqueCode: json.uniqueCode };
   } catch (error) {
     console.error('sendRegistrationToServer error:', error);
-    return {
-      ok: false,
-      status: 0,
-      message: 'সার্ভারের সাথে যোগাযোগ করা যায়নি। ইন্টারনেট সংযোগ দেখে আবার চেষ্টা করুন।',
-    };
+    return { ok: false, status: 0, message: NETWORK_ERROR_MESSAGE };
   }
 }
 
