@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, StatusBar, NativeModules, Image, BackHandler, Alert } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, StatusBar, NativeModules, Image, BackHandler, Alert, ActivityIndicator } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // কাস্টম সেফ এরিয়া নেটিভ মডিউল ইমপোর্ট করা
 const { SafeAreaModule } = NativeModules;
@@ -12,14 +13,69 @@ import PersonListScreen from './home/personlist';
 import CreatingCardScreen from './home/creatingcard';
 import EmailChangeScreen from './home/emailchange';
 import CardScreen from './home/card'; 
+import LoginScreen from './home/loginscreen';
+
+// লগইন করা আছে কিনা ফোনে মনে রাখার কী
+const LOGIN_KEY = 'app_logged_in';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState('home'); 
   const [selectedCardData, setSelectedCardData] = useState(null); 
   const [insets, setInsets] = useState({ top: 0, bottom: 0, left: 0, right: 0 });
+  // লগইনের অবস্থা: 'checking' (দেখা হচ্ছে) | 'loggedOut' | 'loggedIn'
+  const [authState, setAuthState] = useState('checking');
 
   // বের হওয়ার কনফার্মেশন বক্স একসাথে একাধিকবার খোলা ঠেকানোর জন্য
   const exitDialogOpenRef = useRef(false);
+
+  // অ্যাপ খোলার সময় আগে লগইন করা ছিল কিনা দেখা
+  useEffect(() => {
+    let isActive = true;
+    const checkLogin = async () => {
+      try {
+        const saved = await AsyncStorage.getItem(LOGIN_KEY);
+        if (isActive) setAuthState(saved === 'true' ? 'loggedIn' : 'loggedOut');
+      } catch (error) {
+        console.log('Login check error:', error);
+        if (isActive) setAuthState('loggedOut');
+      }
+    };
+    checkLogin();
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  // সঠিক পাসওয়ার্ড দিলে লগইন মনে রাখা
+  const handleLoginSuccess = async () => {
+    try {
+      await AsyncStorage.setItem(LOGIN_KEY, 'true');
+    } catch (error) {
+      console.log('Login save error:', error);
+    }
+    setAuthState('loggedIn');
+  };
+
+  // লগআউট: নিশ্চিত করে লগইন-চিহ্ন মুছে ফেলা, তারপর লগইন স্ক্রিনে ফেরা
+  const handleLogout = () => {
+    Alert.alert('লগআউট', 'আপনি কি লগআউট করতে চান?', [
+      { text: 'বাতিল', style: 'cancel' },
+      {
+        text: 'লগআউট',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await AsyncStorage.removeItem(LOGIN_KEY);
+          } catch (error) {
+            console.log('Logout error:', error);
+          }
+          setSelectedCardData(null);
+          setCurrentScreen('home');
+          setAuthState('loggedOut');
+        },
+      },
+    ]);
+  };
 
   // বায়োমেট্রিক বা ডিভাইস লক ভেরিফিকেশন ফাংশন
   const authenticateUser = async (onSuccess) => {
@@ -69,7 +125,7 @@ export default function App() {
 
   // সিস্টেমের (ফোনের) ব্যাক বাটন নিয়ন্ত্রণ:
   // - অন্য কোনো স্ক্রিনে থাকলে => মেইন হোমে ফিরে আসবে
-  // - মেইন হোমে থাকলে => বের হওয়ার জন্য কনফার্মেশন নোটিফিকেশন দেখাবে
+  // - মেইন হোমে (বা লগইন স্ক্রিনে) থাকলে => বের হওয়ার জন্য কনফার্মেশন নোটিফিকেশন দেখাবে
   useEffect(() => {
     const onHardwareBackPress = () => {
       if (currentScreen !== 'home') {
@@ -204,6 +260,37 @@ export default function App() {
     }
   };
 
+  // লগইন অবস্থা দেখা চলছে: সাদা পর্দায় ছোট চাকা (যাতে এক ঝলক লগইন স্ক্রিন বা হোম না দেখায়)
+  if (authState === 'checking') {
+    return (
+      <SafeAreaView style={[styles.container, styles.lightContainer, styles.centered]}>
+        <StatusBar barStyle="dark-content" />
+        <ActivityIndicator size="large" color="#1A365D" />
+      </SafeAreaView>
+    );
+  }
+
+  // লগইন করা না থাকলে শুধু লগইন স্ক্রিন দেখাবে
+  if (authState === 'loggedOut') {
+    return (
+      <SafeAreaView style={[
+        styles.container,
+        styles.lightContainer,
+        { paddingTop: insets.top, paddingBottom: insets.bottom }
+      ]}>
+        <StatusBar barStyle="dark-content" />
+        <View style={{ flex: 1 }}>
+          <LoginScreen onLoginSuccess={handleLoginSuccess} />
+        </View>
+        <View style={styles.footer}>
+          <Text style={[styles.footerText, styles.lightSubText]}>
+            &copy; Made by Akphion 
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={[
       styles.container, 
@@ -220,6 +307,13 @@ export default function App() {
           )}
           <Text style={[styles.barTitle, styles.lightText]}>Smart Service</Text>
         </TouchableOpacity>
+
+        {/* হোম স্ক্রিনে ডানদিকে লগআউট বাটন */}
+        {currentScreen === 'home' && (
+          <TouchableOpacity onPress={handleLogout} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={styles.logoutText}>লগআউট</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* ডায়নামিক স্ক্রিন রেন্ডারিং */}
@@ -241,6 +335,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   lightContainer: {
     backgroundColor: '#f8f9fa',
   },
@@ -260,6 +358,11 @@ const styles = StyleSheet.create({
   barTitle: {
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  logoutText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#dc3545',
   },
   headerBackIcon: {
     width: 20,
