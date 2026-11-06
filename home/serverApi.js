@@ -1,6 +1,6 @@
 // সার্ভারের সাথে যোগাযোগের ফাইল: লগইন (নিজে নিজে), টোকেন জমানো, নিবন্ধনের তথ্য পাঠানো
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import API, { APP_LOGIN } from '../apiConfig';
+import API, { APP_LOGIN } from './apiConfig';
 
 const TOKEN_KEY = 'server_auth_token';
 const TIMEOUT_MS = 25000;
@@ -18,6 +18,10 @@ async function fetchWithTimeout(url, options = {}) {
 
 // সার্ভারে লগইন করে টোকেন জমিয়ে রাখা
 async function loginAndStoreToken() {
+  // apiConfig.js এ APP_LOGIN না থাকলে (পুরনো ফাইল থাকলে) সার্ভারে খালি অনুরোধ যেত, তাই আগেই পরিষ্কার বার্তা দেওয়া
+  if (!APP_LOGIN || !APP_LOGIN.username || !APP_LOGIN.password) {
+    throw new Error('apiConfig.js ফাইলে APP_LOGIN (ইউজারনেম ও পাসওয়ার্ড) বসানো নেই।');
+  }
   const res = await fetchWithTimeout(API.login(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
