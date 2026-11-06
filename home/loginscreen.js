@@ -1,21 +1,29 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Keyboard } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Keyboard, ActivityIndicator } from 'react-native';
+import { loginWithPassword } from './serverApi';
 
-// অ্যাপে ঢোকার পাসওয়ার্ড — বদলাতে চাইলে শুধু এই লাইনটি বদলান
-const APP_PASSWORD = '1234';
-
+// পাসওয়ার্ড ঠিক কিনা সার্ভার ঠিক করে; এখানে কোনো পাসওয়ার্ড লেখা নেই
+// সার্ভারে পাসওয়ার্ড বদলাতে: সার্ভারের .env ফাইলের APP_PASSWORD
 export default function LoginScreen({ onLoginSuccess }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    if (password.trim() === APP_PASSWORD) {
-      Keyboard.dismiss();
-      setError('');
+  const handleLogin = async () => {
+    if (loading || !password.trim()) return;
+
+    Keyboard.dismiss();
+    setLoading(true);
+    setError('');
+
+    const result = await loginWithPassword(password.trim());
+
+    setLoading(false);
+    if (result.ok) {
       setPassword('');
       if (onLoginSuccess) onLoginSuccess();
     } else {
-      setError('পাসওয়ার্ড ভুল হয়েছে, আবার চেষ্টা করুন।');
+      setError(result.message);
       setPassword('');
     }
   };
@@ -41,6 +49,7 @@ export default function LoginScreen({ onLoginSuccess }) {
           secureTextEntry
           keyboardType="numeric"
           autoFocus
+          editable={!loading}
           onSubmitEditing={handleLogin}
           returnKeyType="done"
         />
@@ -48,11 +57,11 @@ export default function LoginScreen({ onLoginSuccess }) {
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <TouchableOpacity
-          style={[styles.btn, !password.trim() && styles.btnDisabled]}
+          style={[styles.btn, (!password.trim() || loading) && styles.btnDisabled]}
           onPress={handleLogin}
-          disabled={!password.trim()}
+          disabled={!password.trim() || loading}
         >
-          <Text style={styles.btnText}>লগইন</Text>
+          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>লগইন</Text>}
         </TouchableOpacity>
       </View>
     </ScrollView>
