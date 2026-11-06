@@ -167,6 +167,88 @@ export async function reportCardEvent(uniqueCode, action) {
   }
 }
 
+// ---------- অনুদানের কার্ড স্ক্যান ----------
+
+// পারসন লিস্ট ও কিউআর স্ক্যানারের সাথে একই স্টোরেজ কী (ফোনে থাকা নিজস্ব তালিকা)
+const PERSON_LIST_KEY = 'persistent_numbers_data';
+
+// ফোনের তালিকায় (পারসন লিস্টের জন্য) স্ক্যান চিহ্ন মিলিয়ে রাখা; ব্যর্থ হলে চুপচাপ বাদ
+// scannedAt থাকলে "স্ক্যান হয়েছে" বসে, null হলে চিহ্ন মুছে যায়; code না দিলে সব কার্ড
+async function mirrorScanLocally(scannedAt, code) {
+  try {
+    const data = await AsyncStorage.getItem(PERSON_LIST_KEY);
+    const list = data ? JSON.parse(data) : [];
+    if (!Array.isArray(list)) return;
+
+    let changed = false;
+    list.forEach((person) => {
+      if (code && String(person.uniqueCode) !== String(code)) return;
+      if (scannedAt) {
+        person.scanned = true;
+        person.scannedAt = scannedAt;
+      } else {
+        delete person.scanned;
+        delete person.scannedAt;
+      }
+      changed = true;
+    });
+    if (changed) await AsyncStorage.setItem(PERSON_LIST_KEY, JSON.stringify(list));
+  } catch (e) {
+    // উপেক্ষা
+  }
+}
+
+// কিউআর কোড সার্ভারে যাচাই ও "স্ক্যান হয়েছে" চিহ্ন বসানো
+// সার্ভারের উত্তর পেলে: { ok: true, status: 'success' | 'duplicate' | 'notfound', card?, summary? }
+// সার্ভারে যোগাযোগ না হলে বা অন্য ত্রুটি হলে: { ok: false, message }  (এটাকে "নিবন্ধিত নয়" ধরা যাবে না)
+export async function scanCardOnServer(code) {
+  try {
+    const res = await authedFetch(API.cardScan(code), { method: 'POST' });
+    const json = await res.json().catch(() => ({}));
+
+    // শুধু সার্ভার নিজে 'status' দিলেই সেটা আসল ফলাফল; ঠিকানা না পাওয়ার (পুরোনো সার্ভার) 404 ও এখানে আসবে না
+    if (json && ['success', 'duplicate', 'notfound'].includes(json.status)) {
+      if (json.card && json.card.scannedAt && json.status !== 'notfound') {
+        await mirrorScanLocally(json.card.scannedAt, code);
+      }
+      return { ok: true, status: json.status, card: json.card, summary: json.summary };
+    }
+    return { ok: false, status: res.status, message: json.error || 'কার্ড যাচাই করা যায়নি।' };
+  } catch (error) {
+    console.error('scanCardOnServer error:', error);
+    return { ok: false, status: 0, message: NETWORK_ERROR_MESSAGE };
+  }
+}
+
+// স্ক্যানের অগ্রগতি: { ok: true, total, scanned }
+export async function fetchScanSummary() {
+  try {
+    const res = await authedFetch(API.scansSummary());
+    const json = await res.json().catch(() => ({}));
+    if (res.ok) return { ok: true, total: json.total || 0, scanned: json.scanned || 0 };
+    return { ok: false, status: res.status, message: json.error || 'অগ্রগতি আনা যায়নি।' };
+  } catch (error) {
+    return { ok: false, status: 0, message: NETWORK_ERROR_MESSAGE };
+  }
+}
+
+// নতুন দফা শুরু (রিস্টার্ট): সব কার্ডের স্ক্যান চিহ্ন মুছে আবার সবাইকে স্ক্যান করা যাবে (সার্ভারে শুধু admin পারে)
+// সফল হলে ফোনের পারসন লিস্টের স্ক্যান চিহ্নও মুছে যায়। সফল হলে: { ok: true, cleared }
+export async function resetAllScansOnServer() {
+  try {
+    const res = await authedFetch(API.scansReset(), { method: 'POST' });
+    const json = await res.json().catch(() => ({}));
+    if (res.ok) {
+      await mirrorScanLocally(null, null);
+      return { ok: true, cleared: json.cleared || 0 };
+    }
+    return { ok: false, status: res.status, message: json.error || 'রিস্টার্ট করা যায়নি।' };
+  } catch (error) {
+    console.error('resetAllScansOnServer error:', error);
+    return { ok: false, status: 0, message: NETWORK_ERROR_MESSAGE };
+  }
+}
+
 // ---------- তালিকা দেখা ও মোছা ----------
 
 // ছবি দেখানোর জন্য টোকেন লাগে (Image এর headers এ বসাতে)
