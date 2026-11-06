@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, TouchableOpacity, Image, ScrollView } from 'rea
 import { CameraView, Camera } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 // কার্ড সার্ভারে যাচাই হয়: সার্ভারই ঠিক করে কার্ড নিবন্ধিত কিনা এবং আগে স্ক্যান হয়েছে কিনা
-import { scanCardOnServer, fetchScanSummary } from './serverApi';
+import { scanCardOnServer } from './serverApi';
 
 const IDLE_MESSAGE = 'স্ক্যান করার জন্য ক্যামেরা নির্দেশ করুন...';
 // সার্ভারে সমস্যা হলে এতক্ষণ (মিলিসেকেন্ড) পর আবার স্ক্যান করা যাবে (ক্যামেরা একই কোড বারবার পড়ে, তাই সঙ্গে সঙ্গে নয়)
@@ -26,9 +26,6 @@ export default function QRScannerScreen({ onBack }) {
   // স্ক্যান ফলাফল: { status: 'success' | 'duplicate' | 'notfound', person, code }
   const [scanResult, setScanResult] = useState(null);
 
-  // সার্ভারের হিসাব: { total: মোট কার্ড, scanned: স্ক্যান হয়েছে } (সব স্ক্যান হলে নতুন দফার বার্তা দেখানোর জন্য)
-  const [summary, setSummary] = useState(null);
-
   // ক্যামেরা একই কোড বারবার পড়ে, তাই একবার প্রসেস শুরু হলে লক রাখা হয়
   const processingRef = useRef(false);
 
@@ -36,14 +33,6 @@ export default function QRScannerScreen({ onBack }) {
     (async () => {
       const { status } = await Camera.requestCameraPermissionsAsync();
       setHasPermission(status === 'granted');
-    })();
-  }, []);
-
-  // খুলতেই সার্ভার থেকে স্ক্যানের অগ্রগতি আনা (না পারলে চুপচাপ বাদ)
-  useEffect(() => {
-    (async () => {
-      const result = await fetchScanSummary();
-      if (result.ok) setSummary({ total: result.total, scanned: result.scanned });
     })();
   }, []);
 
@@ -76,7 +65,6 @@ export default function QRScannerScreen({ onBack }) {
         return;
       }
 
-      if (result.summary) setSummary({ total: result.summary.total, scanned: result.summary.scanned });
       setScanResult({ status: result.status, person: result.card, code });
     } catch (error) {
       console.error('Scan process error:', error);
@@ -248,18 +236,6 @@ export default function QRScannerScreen({ onBack }) {
         <Text style={styles.resultText}>{scannedData}</Text>
       )}
 
-      {/* স্ক্যানের অগ্রগতি; সব কার্ড স্ক্যান হয়ে গেলে নতুন দফার (রিস্টার্ট) নির্দেশ */}
-      {summary && summary.total > 0 ? (
-        <View style={styles.summaryBox}>
-          <Text style={styles.summaryText}>স্ক্যান হয়েছে: {summary.scanned} / {summary.total}</Text>
-          {summary.scanned >= summary.total ? (
-            <Text style={styles.summaryDone}>
-              সবগুলো কার্ড স্ক্যান হয়ে গেছে। আবার স্ক্যান করতে হলে পারসন লিস্ট থেকে রিস্টার্ট দিন।
-            </Text>
-          ) : null}
-        </View>
-      ) : null}
-
       {/* ক্যামেরা মোডে ফলাফল দেখানোর পর পরবর্তী কার্ড স্ক্যানের বাটন */}
       {scanResult && !selectedImage && (
         <TouchableOpacity style={styles.nextScanBtn} onPress={resetScan}>
@@ -318,10 +294,6 @@ const styles = StyleSheet.create({
   personName: { fontSize: 14, fontWeight: 'bold', color: '#333' },
   personDetail: { fontSize: 12, color: '#666', marginTop: 1 },
   personCode: { fontSize: 11, color: '#1A365D', marginTop: 3, fontWeight: 'bold', letterSpacing: 0.5 },
-
-  summaryBox: { width: '100%', alignItems: 'center', marginBottom: 10 },
-  summaryText: { fontSize: 13, fontWeight: 'bold', color: '#1A365D' },
-  summaryDone: { fontSize: 12, color: '#dc3545', textAlign: 'center', marginTop: 3, paddingHorizontal: 10 },
 
   nextScanBtn: { backgroundColor: '#007bff', paddingVertical: 10, paddingHorizontal: 25, borderRadius: 8, width: '100%', alignItems: 'center', marginBottom: 8, elevation: 2 },
   photoUploadBtn: { flexDirection: 'row', backgroundColor: '#17a2b8', paddingVertical: 10, paddingHorizontal: 25, borderRadius: 8, width: '100%', justifyContent: 'center', alignItems: 'center', marginBottom: 8, elevation: 2 },
