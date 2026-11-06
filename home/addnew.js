@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // ছবি ক্রপ করে সেভ করার জন্য (card.js-এ আগে থেকেই ব্যবহার হচ্ছে, তাই নতুন কোনো প্যাকেজ লাগছে না)
 import { captureRef } from 'react-native-view-shot';
 // সার্ভারে নিবন্ধনের তথ্য পাঠানোর ফাইল
-import { sendRegistrationToServer } from './serverApi';
+import { sendRegistrationToServer, checkNidOnServer } from './serverApi';
 
 const STORAGE_KEY = 'smart_cards_data';
 
@@ -233,6 +233,8 @@ export default function AddNewScreen({ onNext, onBack }) {
   const [isCapturing, setIsCapturing] = useState(false);
   // সার্ভারে পাঠানোর সময় বাটন বন্ধ রাখতে (দুইবার চাপ ঠেকাতে)
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // এনআইডি সার্ভারে আছে কিনা: 'idle' | 'checking' | 'exists' (আগেই আছে) | 'available' (নতুন) | 'error' (যাচাই করা যায়নি)
+  const [nidStatus, setNidStatus] = useState('idle');
   const cameraRef = useRef(null);
   const { width: winWidth, height: winHeight } = useWindowDimensions();
   // ক্যামেরার মাঝের বর্গাকার ফ্রেমের মাপ: শুধু এই ফ্রেমের ভেতরের অংশটুকুই সেভ হবে
@@ -270,6 +272,28 @@ export default function AddNewScreen({ onNext, onBack }) {
     dayPart.length === 2 && monthPart.length === 2 && dobYear.length === 4
       ? `${dayPart}/${monthPart}/${dobYear}`
       : '';
+
+  // এনআইডি লেখার সময় (টাইপ থামার ০.৬ সেকেন্ড পর) সার্ভারে আগে থেকেই আছে কিনা যাচাই হয়
+  useEffect(() => {
+    const value = toEnglishDigits(nid).trim();
+    if (!value || !/^\d+$/.test(value)) {
+      setNidStatus('idle');
+      return undefined;
+    }
+
+    setNidStatus('checking');
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const result = await checkNidOnServer(value);
+      if (cancelled) return;
+      setNidStatus(result.ok ? (result.exists ? 'exists' : 'available') : 'error');
+    }, 600);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [nid]);
 
   // জন্ম তারিখ সঠিক হলে বয়স নিজে থেকে হিসাব হবে, না হলে null
   const ageInfo = calculateAge(dob);
@@ -514,6 +538,12 @@ export default function AddNewScreen({ onNext, onBack }) {
   // ডেটা সেভ এবং নেক্সট স্ক্রিনে যাওয়ার ফাংশন
   const handleNext = async () => {
     if (isSubmitting) return;
+
+    // এনআইডি সার্ভারে আগেই থাকলে কোনোভাবেই নতুন নিবন্ধন হবে না
+    if (nidStatus === 'exists') {
+      Alert.alert('আগেই নিবন্ধিত', 'এই এনআইডি নম্বর সার্ভারে আগেই আছে, তাই এই নম্বরে নতুন নিবন্ধন করা যাবে না।');
+      return;
+    }
     if (
       !name.trim() || !fatherName.trim() || !motherName.trim() || !nid.trim() || !phone.trim() ||
       !dob.trim() || !gender || !maritalStatus || !occupation || !socialStatus || !ward.trim() ||
@@ -536,6 +566,14 @@ export default function AddNewScreen({ onNext, onBack }) {
 
     setIsSubmitting(true);
     try {
+      // জমা দেওয়ার ঠিক আগে আরেকবার সার্ভারে যাচাই (এর মাঝে অন্য কেউ একই এনআইডি দিয়ে থাকতে পারে)
+      const fresh = await checkNidOnServer(toEnglishDigits(nid).trim());
+      if (fresh.ok && fresh.exists) {
+        setNidStatus('exists');
+        Alert.alert('আগেই নিবন্ধিত', 'এই এনআইডি নম্বর সার্ভারে আগেই আছে, তাই এই নম্বরে নতুন নিবন্ধন করা যাবে না।');
+        return;
+      }
+
       const existingData = await AsyncStorage.getItem(STORAGE_KEY);
       let list = existingData ? JSON.parse(existingData) : [];
 
@@ -663,7 +701,7 @@ export default function AddNewScreen({ onNext, onBack }) {
       <View style={styles.inputGroup} onLayout={onFieldLayout('nid')}>
         <Text style={styles.label}>NID Card No. (এনআইডি নম্বর):</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, nidStatus === 'exists' && styles.inputError]}
           placeholder="এনআইডি কার্ড নম্বর লিখুন..."
           placeholderTextColor="#999"
           value={nid}
@@ -672,6 +710,22 @@ export default function AddNewScreen({ onNext, onBack }) {
           onFocus={() => handleFieldFocus('nid')}
           onBlur={handleFieldBlur}
         />
+        {nidStatus === 'checking' && (
+          <Text style={[styles.nidStatusText, styles.nidChecking]}>সার্ভারে যাচাই হচ্ছে...</Text>
+        )}
+        {nidStatus === 'exists' && (
+          <Text style={[styles.nidStatusText, styles.nidExists]}>
+            এই এনআইডি সার্ভারে আগেই নিবন্ধিত আছে, নতুন নিবন্ধন করা যাবে না।
+          </Text>
+        )}
+        {nidStatus === 'available' && (
+          <Text style={[styles.nidStatusText, styles.nidAvailable]}>এই এনআইডি নতুন, নিবন্ধন করা যাবে।</Text>
+        )}
+        {nidStatus === 'error' && (
+          <Text style={[styles.nidStatusText, styles.nidChecking]}>
+            এনআইডি যাচাই করা যায়নি (ইন্টারনেট/সার্ভার দেখুন)। জমা দেওয়ার সময় আবার যাচাই হবে।
+          </Text>
+        )}
       </View>
 
       <View style={styles.inputGroup} onLayout={onFieldLayout('phone')}>
@@ -859,9 +913,9 @@ export default function AddNewScreen({ onNext, onBack }) {
 
       {/* নেক্সট বাটন */}
       <TouchableOpacity
-        style={[styles.btn, isSubmitting && { opacity: 0.7 }]}
+        style={[styles.btn, (isSubmitting || nidStatus === 'exists') && { opacity: 0.5 }]}
         onPress={handleNext}
-        disabled={isSubmitting}
+        disabled={isSubmitting || nidStatus === 'exists'}
       >
         {isSubmitting ? (
           <ActivityIndicator color="#fff" />
@@ -1015,6 +1069,12 @@ const styles = StyleSheet.create({
   inputGroup: { marginBottom: 12 },
   label: { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 5 },
   input: { height: 48, borderWidth: 1, borderColor: '#ced4da', borderRadius: 8, paddingHorizontal: 15, backgroundColor: '#fff', fontSize: 16, color: '#000' },
+
+  inputError: { borderColor: '#dc3545', borderWidth: 2 },
+  nidStatusText: { fontSize: 12, marginTop: 4 },
+  nidChecking: { color: '#888' },
+  nidExists: { color: '#dc3545', fontWeight: 'bold' },
+  nidAvailable: { color: '#28a745' },
 
   /* জন্ম তারিখের তিনটি ছোট ছক (দিন, মাস, বছর) */
   dobRow: { flexDirection: 'row' },
