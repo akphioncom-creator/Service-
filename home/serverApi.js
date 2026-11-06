@@ -1,6 +1,6 @@
 // সার্ভারের সাথে যোগাযোগের ফাইল: পাসওয়ার্ড দিয়ে লগইন, টোকেন জমানো, নিবন্ধনের তথ্য পাঠানো, তালিকা আনা
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import API from './apiConfig';
+import API from '../apiConfig';
 
 const TOKEN_KEY = 'server_auth_token';
 const TIMEOUT_MS = 25000;
