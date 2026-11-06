@@ -1,3 +1,7 @@
+// সার্ভারের ঠিকানা ও API পথ — অ্যাপের সব ফাইল এখান থেকেই সার্ভারের ঠিকানা নেবে
+// সার্ভারের ঠিকানা বদলালে (যেমন নতুন কোডস্পেস বা আসল হোস্টিং) শুধু নিচের BASE_URL বদলালেই সব ফাইলে বদলে যাবে
+
+// ↓↓↓ শুধু এই লাইনটি বদলান (শেষে '/' দেবেন না) ↓↓↓
 export const BASE_URL = 'https://redesigned-enigma-xr4w5gwqjvjq3prx9-3000.app.github.dev';
 // ↑↑↑ ----------------------------------------- ↑↑↑
 
@@ -11,6 +15,8 @@ export const API = {
   // লগইন: অ্যাপ শুধু পাসওয়ার্ড পাঠায়, পাসওয়ার্ড ঠিক কিনা সার্ভার ঠিক করে
   appLogin: () => apiUrl('/api/auth/app-login'),
   login: () => apiUrl('/api/auth/login'), // ইউজারনেম+পাসওয়ার্ড লগইন (অ্যাডমিনের জন্য)
+  verifyPassword: () => apiUrl('/api/auth/verify-password'),   // বর্তমান পাসওয়ার্ড ঠিক কিনা (লগইন লাগে)
+  changePassword: () => apiUrl('/api/auth/change-password'),   // পাসওয়ার্ড বদলানো (লগইন লাগে)
 
   // কার্ডের তথ্য
   cards: () => apiUrl('/api/cards'),                                   // POST: নতুন কার্ড, GET: তালিকা
