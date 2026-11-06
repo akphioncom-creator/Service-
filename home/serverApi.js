@@ -65,6 +65,49 @@ export async function loginWithPassword(password) {
   }
 }
 
+// ---------- পাসওয়ার্ড বদলানো ----------
+
+// বর্তমান পাসওয়ার্ড ঠিক কিনা সার্ভারে যাচাই (ভুল হলে এখান থেকে লগআউট হয় না)
+// সফল হলে: { ok: true }   ব্যর্থ হলে: { ok: false, message }
+export async function verifyCurrentPasswordOnServer(password) {
+  try {
+    const res = await authedFetch(API.verifyPassword(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (res.ok) return { ok: true };
+    return { ok: false, status: res.status, message: json.error || 'পাসওয়ার্ড যাচাই করা যায়নি।' };
+  } catch (error) {
+    console.error('verifyCurrentPasswordOnServer error:', error);
+    return { ok: false, status: 0, message: NETWORK_ERROR_MESSAGE };
+  }
+}
+
+// পাসওয়ার্ড বদলানো: সার্ভার বর্তমান পাসওয়ার্ড আবার যাচাই করে নতুনটি সংরক্ষণ করে
+// সফল হলে সার্ভারের দেওয়া নতুন টোকেন ফোনে বসে যায় (এই ফোনে আবার লগইন লাগে না; অন্য ফোনে নতুন পাসওয়ার্ড দিয়ে ঢুকতে হবে)
+// সফল হলে: { ok: true }   ব্যর্থ হলে: { ok: false, message }
+export async function changePasswordOnServer(currentPassword, newPassword) {
+  try {
+    const res = await authedFetch(API.changePassword(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    const json = await res.json().catch(() => ({}));
+
+    if (res.ok && json.token) {
+      await AsyncStorage.setItem(TOKEN_KEY, json.token);
+      return { ok: true };
+    }
+    return { ok: false, status: res.status, message: json.error || 'পাসওয়ার্ড বদলানো যায়নি।' };
+  } catch (error) {
+    console.error('changePasswordOnServer error:', error);
+    return { ok: false, status: 0, message: NETWORK_ERROR_MESSAGE };
+  }
+}
+
 async function getToken() {
   const saved = await AsyncStorage.getItem(TOKEN_KEY);
   if (!saved) {
