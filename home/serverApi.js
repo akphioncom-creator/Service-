@@ -1,9 +1,10 @@
-// সার্ভারের সাথে যোগাযোগের ফাইল: লগইন (নিজে নিজে), টোকেন জমানো, নিবন্ধনের তথ্য পাঠানো
+// সার্ভারের সাথে যোগাযোগের ফাইল: পাসওয়ার্ড দিয়ে লগইন, টোকেন জমানো, নিবন্ধনের তথ্য পাঠানো, তালিকা আনা
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import API, { APP_LOGIN } from '../apiConfig';
+import API from './apiConfig';
 
 const TOKEN_KEY = 'server_auth_token';
 const TIMEOUT_MS = 25000;
+const NETWORK_ERROR_MESSAGE = 'সার্ভারের সাথে যোগাযোগ করা যায়নি। ইন্টারনেট সংযোগ দেখে আবার চেষ্টা করুন।';
 
 // সময়সীমা দিয়ে fetch: নেট খুব ধীর হলে অনন্তকাল ঝুলে থাকবে না
 async function fetchWithTimeout(url, options = {}) {
@@ -16,48 +17,75 @@ async function fetchWithTimeout(url, options = {}) {
   }
 }
 
-// সার্ভারে লগইন করে টোকেন জমিয়ে রাখা
-async function loginAndStoreToken() {
-  // apiConfig.js এ APP_LOGIN না থাকলে (পুরনো ফাইল থাকলে) সার্ভারে খালি অনুরোধ যেত, তাই আগেই পরিষ্কার বার্তা দেওয়া
-  if (!APP_LOGIN || !APP_LOGIN.username || !APP_LOGIN.password) {
-    throw new Error('apiConfig.js ফাইলে APP_LOGIN (ইউজারনেম ও পাসওয়ার্ড) বসানো নেই।');
+// ---------- লগইন ----------
+
+// লগইন করা আছে কিনা (ফোনে সার্ভারের টোকেন জমা আছে কিনা)
+export async function hasSavedToken() {
+  try {
+    return Boolean(await AsyncStorage.getItem(TOKEN_KEY));
+  } catch (e) {
+    return false;
   }
-  const res = await fetchWithTimeout(API.login(), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(APP_LOGIN),
-  });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok || !json.token) {
-    throw new Error(json.error || 'সার্ভারে লগইন করা যায়নি।');
-  }
-  await AsyncStorage.setItem(TOKEN_KEY, json.token);
-  return json.token;
 }
 
-// জমানো টোকেন থাকলে সেটা, না থাকলে নতুন লগইন
-async function getToken(forceNew = false) {
-  if (!forceNew) {
-    const saved = await AsyncStorage.getItem(TOKEN_KEY);
-    if (saved) return saved;
+// লগআউট: টোকেন মুছে ফেলা
+export async function clearToken() {
+  try {
+    await AsyncStorage.removeItem(TOKEN_KEY);
+  } catch (e) {
+    // উপেক্ষা
   }
-  return loginAndStoreToken();
 }
 
-// টোকেনসহ অনুরোধ পাঠানো; টোকেনের মেয়াদ শেষ (401) হলে নিজে নতুন লগইন করে একবার আবার চেষ্টা
+// টোকেনের মেয়াদ শেষ হলে বা বাতিল হলে অ্যাপকে জানানোর ব্যবস্থা (App.js এটা বসায়, তখন অ্যাপ লগইন স্ক্রিনে ফিরবে)
+let authExpiredHandler = null;
+export function setAuthExpiredHandler(handler) {
+  authExpiredHandler = handler;
+}
+
+// শুধু পাসওয়ার্ড দিয়ে লগইন: পাসওয়ার্ড ঠিক কিনা সার্ভার ঠিক করে
+// সফল হলে: { ok: true }   ব্যর্থ হলে: { ok: false, message }
+export async function loginWithPassword(password) {
+  try {
+    const res = await fetchWithTimeout(API.appLogin(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    const json = await res.json().catch(() => ({}));
+
+    if (res.ok && json.token) {
+      await AsyncStorage.setItem(TOKEN_KEY, json.token);
+      return { ok: true };
+    }
+    return { ok: false, message: json.error || 'লগইন করা যায়নি।' };
+  } catch (error) {
+    console.error('loginWithPassword error:', error);
+    return { ok: false, message: NETWORK_ERROR_MESSAGE };
+  }
+}
+
+async function getToken() {
+  const saved = await AsyncStorage.getItem(TOKEN_KEY);
+  if (!saved) {
+    await clearToken();
+    if (authExpiredHandler) authExpiredHandler();
+    throw new Error('লগইন করা নেই।');
+  }
+  return saved;
+}
+
+// টোকেনসহ অনুরোধ পাঠানো; সার্ভার টোকেন না মানলে (401) টোকেন মুছে অ্যাপকে লগইন স্ক্রিনে ফেরানো হয়
 async function authedFetch(url, options = {}) {
-  let token = await getToken();
-  let res = await fetchWithTimeout(url, {
+  const token = await getToken();
+  const res = await fetchWithTimeout(url, {
     ...options,
     headers: { ...(options.headers || {}), Authorization: `Bearer ${token}` },
   });
 
   if (res.status === 401) {
-    token = await getToken(true);
-    res = await fetchWithTimeout(url, {
-      ...options,
-      headers: { ...(options.headers || {}), Authorization: `Bearer ${token}` },
-    });
+    await clearToken();
+    if (authExpiredHandler) authExpiredHandler();
   }
   return res;
 }
@@ -138,8 +166,6 @@ export async function reportCardEvent(uniqueCode, action) {
 }
 
 // ---------- তালিকা দেখা ও মোছা ----------
-
-const NETWORK_ERROR_MESSAGE = 'সার্ভারের সাথে যোগাযোগ করা যায়নি। ইন্টারনেট সংযোগ দেখে আবার চেষ্টা করুন।';
 
 // ছবি দেখানোর জন্য টোকেন লাগে (Image এর headers এ বসাতে)
 export async function getAuthToken() {
