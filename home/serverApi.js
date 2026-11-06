@@ -109,8 +109,10 @@ export async function sendRegistrationToServer(item) {
       spouseNid: item.spouseNid,
       occupation: item.occupation,
       socialStatus: item.socialStatus,
+      areaType: item.areaType, // ইউনিয়ন বা পৌরসভা
+      areaName: item.areaName, // ইউনিয়ন/পৌরসভার নাম
       ward: item.ward,
-      village: item.village,
+      village: item.village, // এখন areaName-এর সমান (পুরোনো সার্ভার কোডের জন্য)
       upazila: item.upazila,
       district: item.district,
       createdAt: item.createdAt, // কার্ড খোলার (নিবন্ধনের) তারিখ ও সময়
