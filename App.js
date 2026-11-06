@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, StatusBar, NativeModules, Image, BackHandler, Alert, ActivityIndicator } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // কাস্টম সেফ এরিয়া নেটিভ মডিউল ইমপোর্ট করা
 const { SafeAreaModule } = NativeModules;
@@ -14,9 +13,7 @@ import CreatingCardScreen from './home/creatingcard';
 import EmailChangeScreen from './home/emailchange';
 import CardScreen from './home/card'; 
 import LoginScreen from './home/loginscreen';
-
-// লগইন করা আছে কিনা ফোনে মনে রাখার কী
-const LOGIN_KEY = 'app_logged_in';
+import { hasSavedToken, clearToken, setAuthExpiredHandler } from './home/serverApi';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState('home'); 
@@ -28,17 +25,12 @@ export default function App() {
   // বের হওয়ার কনফার্মেশন বক্স একসাথে একাধিকবার খোলা ঠেকানোর জন্য
   const exitDialogOpenRef = useRef(false);
 
-  // অ্যাপ খোলার সময় আগে লগইন করা ছিল কিনা দেখা
+  // অ্যাপ খোলার সময় আগে লগইন করা ছিল কিনা দেখা (সার্ভারের টোকেন ফোনে জমা আছে কিনা)
   useEffect(() => {
     let isActive = true;
     const checkLogin = async () => {
-      try {
-        const saved = await AsyncStorage.getItem(LOGIN_KEY);
-        if (isActive) setAuthState(saved === 'true' ? 'loggedIn' : 'loggedOut');
-      } catch (error) {
-        console.log('Login check error:', error);
-        if (isActive) setAuthState('loggedOut');
-      }
+      const loggedIn = await hasSavedToken();
+      if (isActive) setAuthState(loggedIn ? 'loggedIn' : 'loggedOut');
     };
     checkLogin();
     return () => {
@@ -46,17 +38,23 @@ export default function App() {
     };
   }, []);
 
-  // সঠিক পাসওয়ার্ড দিলে লগইন মনে রাখা
-  const handleLoginSuccess = async () => {
-    try {
-      await AsyncStorage.setItem(LOGIN_KEY, 'true');
-    } catch (error) {
-      console.log('Login save error:', error);
-    }
+  // সার্ভার টোকেন না মানলে (মেয়াদ শেষ বা বাতিল) নিজে নিজে লগইন স্ক্রিনে ফেরা
+  useEffect(() => {
+    setAuthExpiredHandler(() => {
+      setSelectedCardData(null);
+      setCurrentScreen('home');
+      setAuthState('loggedOut');
+      Alert.alert('আবার লগইন করুন', 'আপনার লগইনের মেয়াদ শেষ হয়ে গেছে। পাসওয়ার্ড দিয়ে আবার ঢুকুন।');
+    });
+    return () => setAuthExpiredHandler(null);
+  }, []);
+
+  // সার্ভার সঠিক পাসওয়ার্ড মেনে নিলে (টোকেন ইতিমধ্যে জমা হয়েছে) অ্যাপের ভেতরে ঢোকা
+  const handleLoginSuccess = () => {
     setAuthState('loggedIn');
   };
 
-  // লগআউট: নিশ্চিত করে লগইন-চিহ্ন মুছে ফেলা, তারপর লগইন স্ক্রিনে ফেরা
+  // লগআউট: নিশ্চিত করে টোকেন মুছে ফেলা, তারপর লগইন স্ক্রিনে ফেরা
   const handleLogout = () => {
     Alert.alert('লগআউট', 'আপনি কি লগআউট করতে চান?', [
       { text: 'বাতিল', style: 'cancel' },
@@ -64,11 +62,7 @@ export default function App() {
         text: 'লগআউট',
         style: 'destructive',
         onPress: async () => {
-          try {
-            await AsyncStorage.removeItem(LOGIN_KEY);
-          } catch (error) {
-            console.log('Logout error:', error);
-          }
+          await clearToken();
           setSelectedCardData(null);
           setCurrentScreen('home');
           setAuthState('loggedOut');
