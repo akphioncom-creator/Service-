@@ -11,12 +11,17 @@ import AddNewScreen from './home/addnew';
 import PersonListScreen from './home/personlist';
 import CreatingCardScreen from './home/creatingcard';
 import EmailChangeScreen from './home/emailchange';
+import SettingScreen from './home/setting';
+import PasswordChangeScreen from './home/passwordchange';
 import CardScreen from './home/card'; 
 import LoginScreen from './home/loginscreen';
 import { hasSavedToken, clearToken, setAuthExpiredHandler } from './home/serverApi';
 
+// ব্যাক চাপলে কোন স্ক্রিনে ফিরবে: পাসওয়ার্ড চেঞ্জ থেকে সেটিং-এ, বাকি সব জায়গা থেকে হোমে
+const getBackTarget = (screen) => (screen === 'passwordchange' ? 'setting' : 'home');
+
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState('home'); 
+  const [currentScreen, setCurrentScreen] = useState('home');
   const [selectedCardData, setSelectedCardData] = useState(null); 
   const [insets, setInsets] = useState({ top: 0, bottom: 0, left: 0, right: 0 });
   // লগইনের অবস্থা: 'checking' (দেখা হচ্ছে) | 'loggedOut' | 'loggedIn'
@@ -118,12 +123,12 @@ export default function App() {
   }, []);
 
   // সিস্টেমের (ফোনের) ব্যাক বাটন নিয়ন্ত্রণ:
-  // - অন্য কোনো স্ক্রিনে থাকলে => মেইন হোমে ফিরে আসবে
+  // - অন্য কোনো স্ক্রিনে থাকলে => মেইন হোমে ফিরে আসবে (পাসওয়ার্ড চেঞ্জ থেকে আগে সেটিং-এ)
   // - মেইন হোমে (বা লগইন স্ক্রিনে) থাকলে => বের হওয়ার জন্য কনফার্মেশন নোটিফিকেশন দেখাবে
   useEffect(() => {
     const onHardwareBackPress = () => {
       if (currentScreen !== 'home') {
-        setCurrentScreen('home');
+        setCurrentScreen(getBackTarget(currentScreen));
         return true; // ডিফল্ট ব্যাক (অ্যাপ বন্ধ হওয়া) ঠেকানো হলো
       }
 
@@ -207,6 +212,16 @@ export default function App() {
         return <CreatingCardScreen onBack={() => handleScreenChange('home')} />;
       case 'emailchange':
         return <EmailChangeScreen onBack={() => handleScreenChange('home')} />;
+      case 'setting':
+        // সেটিং-এ ঢোকার সময়ই ফিঙ্গারপ্রিন্ট/পিন চাওয়া হয়েছে (handleScreenChange এর লক), তাই ভেতরের পাতায় আবার চাওয়া হয় না
+        return (
+          <SettingScreen
+            onBack={() => handleScreenChange('home')}
+            onOpenPasswordChange={() => setCurrentScreen('passwordchange')}
+          />
+        );
+      case 'passwordchange':
+        return <PasswordChangeScreen onBack={() => setCurrentScreen('setting')} />;
       default:
         return (
           <View style={styles.dashboardGrid}>
@@ -248,6 +263,16 @@ export default function App() {
               <Image source={{ uri: 'downloadicon' }} style={[styles.cardIconImage, { tintColor: '#1A365D' }]} />
               <Text style={[styles.cardTitle, styles.lightText]}>creating all card</Text>
               <Text style={styles.cardDesc}>সবগুলোর জন্য কার্ড তৈরি করুন</Text>
+            </TouchableOpacity>
+
+            {/* অপশন ৫: setting (ফিঙ্গারপ্রিন্ট/পিন লাগবে) */}
+            <TouchableOpacity
+              style={[styles.dashboardCard, styles.lightCard]}
+              onPress={() => handleScreenChange('setting')}
+            >
+              <Image source={{ uri: 'ic_settings' }} style={[styles.cardIconImage, { tintColor: '#1A365D' }]} />
+              <Text style={[styles.cardTitle, styles.lightText]}>setting</Text>
+              <Text style={styles.cardDesc}>পাসওয়ার্ড ও অন্যান্য সেটিং</Text>
             </TouchableOpacity>
           </View>
         );
@@ -295,7 +320,7 @@ export default function App() {
 
       {/* উপরে এক লাইন লেখা: Smart Service এবং ব্যাক বাটন */}
       <View style={[styles.upServersBar, styles.lightBar]}>
-        <TouchableOpacity onPress={() => handleScreenChange('home')} style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <TouchableOpacity onPress={() => setCurrentScreen(getBackTarget(currentScreen))} style={{ flexDirection: 'row', alignItems: 'center' }}>
           {currentScreen !== 'home' && (
             <Image source={{ uri: 'back_icon' }} style={[styles.headerBackIcon, { tintColor: '#1A365D' }]} />
           )}
@@ -371,13 +396,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignContent: 'space-between',
   },
+  // পাঁচটি অপশন: দুই কলাম, তিন সারি (আগে চারটি বড় ঘর ছিল, এখন ছোট)
   dashboardCard: {
     width: '48%',
-    height: '48%',
+    height: '31.5%',
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 15,
+    padding: 10,
     borderWidth: 1,
     elevation: 2,
     shadowColor: '#000',
@@ -390,23 +416,23 @@ const styles = StyleSheet.create({
     borderColor: '#e0e0e0',
   },
   cardIcon: {
-    fontSize: 35,
-    marginBottom: 10,
+    fontSize: 28,
+    marginBottom: 6,
   },
   cardIconImage: {
-    width: 35,
-    height: 35,
-    marginBottom: 10,
+    width: 28,
+    height: 28,
+    marginBottom: 6,
     resizeMode: 'contain',
   },
   cardTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 5,
+    marginBottom: 3,
   },
   cardDesc: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#666',
     textAlign: 'center',
   },
