@@ -138,6 +138,20 @@ export async function sendRegistrationToServer(item) {
   }
 }
 
+// এনআইডি নম্বর সার্ভারে আগে থেকেই আছে কিনা দেখা
+// সফল হলে: { ok: true, exists: true/false }   ব্যর্থ হলে: { ok: false, message }
+export async function checkNidOnServer(nid) {
+  try {
+    const res = await authedFetch(API.checkNid(nid));
+    const json = await res.json().catch(() => ({}));
+    if (res.ok) return { ok: true, exists: Boolean(json.exists) };
+    return { ok: false, status: res.status, message: json.error || 'এনআইডি যাচাই করা যায়নি।' };
+  } catch (error) {
+    console.error('checkNidOnServer error:', error);
+    return { ok: false, status: 0, message: NETWORK_ERROR_MESSAGE };
+  }
+}
+
 // কার্ড খুললে/গ্যালারিতে সেভ করলে সার্ভারের ইতিহাসে জানানো (ব্যর্থ হলে চুপচাপ বাদ, অ্যাপ আটকাবে না)
 export async function reportCardEvent(uniqueCode, action) {
   try {
