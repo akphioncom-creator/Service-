@@ -18,6 +18,7 @@ export const API = {
 
   // কার্ডের তথ্য
   cards: () => apiUrl('/api/cards'),                                   // POST: নতুন কার্ড, GET: তালিকা
+  checkNid: (nid) => apiUrl(`/api/cards/check-nid/${encodeURIComponent(nid)}`), // এনআইডি সার্ভারে আছে কিনা
   card: (code) => apiUrl(`/api/cards/${code}`),                        // GET / PUT / DELETE
   cardPhoto: (code) => apiUrl(`/api/cards/${code}/photo`),             // ব্যক্তির ছবি (লগইন লাগে)
   cardHistory: (code) => apiUrl(`/api/cards/${code}/history`),         // কার্ডের ইতিহাস
