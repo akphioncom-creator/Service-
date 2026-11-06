@@ -65,6 +65,20 @@ const MARITAL_OPTIONS = ['বিবাহিত', 'অবিবাহিত', '�
 const SOCIAL_STATUS_OPTIONS = ['Extremely Poor', 'Poor', 'Middle Class', 'Disabled'];
 const MARRIED = 'বিবাহিত';
 
+// ইউনিয়ন / পৌরসভা নির্বাচন: আগে ধরন, তারপর নাম, তারপর ওয়ার্ড (১–৯)
+const AREA_TYPE_UNION = 'ইউনিয়ন';
+const AREA_TYPE_POURASHAVA = 'পৌরসভা';
+const AREA_TYPE_OPTIONS = [AREA_TYPE_UNION, AREA_TYPE_POURASHAVA];
+const AREA_NAMES = {
+  [AREA_TYPE_UNION]: [
+    'নাওগাঁও', 'পুটিজানা', 'কুশমাইল', 'বালিয়ান', 'দেওখোলা', 'ফুলবাড়ীয়া', 'বাক্তা',
+    'রাঙ্গামাটিয়া', 'এনায়েতপুর', 'কালাদহ', 'রাধাকানাই', 'আছিমপাটুলী', 'ভবানীপুর',
+  ],
+  [AREA_TYPE_POURASHAVA]: ['ফুলবাড়ীয়া পৌরসভা'],
+};
+// সব ইউনিয়ন ও পৌরসভায় ওয়ার্ড ১–৯ (ওয়ার্ড নম্বর ইংরেজি সংখ্যায় সংরক্ষিত হয়)
+const WARD_OPTIONS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
+
 // বাংলা সংখ্যা (০-৯) কে ইংরেজি সংখ্যায় রূপান্তর
 const toEnglishDigits = (text) =>
   String(text).replace(/[০-৯]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x09e6 + 48));
@@ -262,8 +276,9 @@ export default function AddNewScreen({ onNext, onBack }) {
   const [spouseNid, setSpouseNid] = useState('');
   const [occupation, setOccupation] = useState('');
   const [socialStatus, setSocialStatus] = useState('');
+  const [areaType, setAreaType] = useState('');
+  const [areaName, setAreaName] = useState('');
   const [ward, setWard] = useState('');
-  const [village, setVillage] = useState('');
   const [upazila, setUpazila] = useState('');
   const [district, setDistrict] = useState('');
 
@@ -564,6 +579,21 @@ export default function AddNewScreen({ onNext, onBack }) {
 
   const spin = spinValue.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
 
+  // ধরন (ইউনিয়ন/পৌরসভা) বদলালে নাম ও ওয়ার্ড মুছে যাবে
+  const handleAreaTypeSelect = (option) => {
+    if (option !== areaType) {
+      setAreaName('');
+      setWard('');
+    }
+    setAreaType(option);
+  };
+
+  // নাম বদলালে ওয়ার্ড মুছে যাবে
+  const handleAreaNameSelect = (option) => {
+    if (option !== areaName) setWard('');
+    setAreaName(option);
+  };
+
   // বৈবাহিক অবস্থা পরিবর্তন: "বিবাহিত" ছাড়া অন্য কিছু হলে স্বামী/স্ত্রীর এনআইডি মুছে যাবে
   const handleMaritalSelect = (option) => {
     setMaritalStatus(option);
@@ -593,8 +623,8 @@ export default function AddNewScreen({ onNext, onBack }) {
     }
     if (
       !name.trim() || !fatherName.trim() || !motherName.trim() || !nid.trim() || !phone.trim() ||
-      !dob.trim() || !gender || !maritalStatus || !occupation || !socialStatus || !ward.trim() ||
-      !village.trim() || !upazila.trim() || !district.trim()
+      !dob.trim() || !gender || !maritalStatus || !occupation || !socialStatus ||
+      !areaType || !areaName || !ward || !upazila.trim() || !district.trim()
     ) {
       Alert.alert('সতর্কতা', 'দয়া করে সবগুলো ঘর সঠিকভাবে পূরণ করুন!');
       return;
@@ -654,8 +684,11 @@ export default function AddNewScreen({ onNext, onBack }) {
         spouseNid: maritalStatus === MARRIED ? spouseNid.trim() : '',
         occupation,
         socialStatus,
-        ward: ward.trim(),
-        village: village.trim(),
+        areaType,
+        areaName,
+        ward,
+        // পুরোনো কোড (কার্ড/সার্ভার) যাতে ভেঙে না যায়, তাই village ঘরে এখন ইউনিয়ন/পৌরসভার নাম যাচ্ছে
+        village: areaName,
         upazila: upazila.trim(),
         district: district.trim(),
         // কার্ড খোলার (নিবন্ধনের) তারিখ: যে মুহূর্তে তথ্য জমা দেওয়া হচ্ছে সেই সময়, সার্ভারে যাবে
@@ -935,32 +968,45 @@ export default function AddNewScreen({ onNext, onBack }) {
         />
       </View>
 
-      <View style={styles.inputGroup} onLayout={onFieldLayout('ward')}>
-        <Text style={styles.label}>Ward No (ওয়ার্ড নং):</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="ওয়ার্ড নম্বর লিখুন..."
-          placeholderTextColor="#999"
-          value={ward}
-          onChangeText={setWard}
-          keyboardType="numeric"
-          onFocus={() => handleFieldFocus('ward')}
-          onBlur={handleFieldBlur}
+      {/* ধাপে ধাপে নির্বাচন: ধরন → নাম → ওয়ার্ড */}
+      <View style={styles.inputGroup} onLayout={onFieldLayout('areaType')}>
+        <DropdownField
+          label="Type (ধরন):"
+          value={areaType}
+          placeholder="ইউনিয়ন / পৌরসভা নির্বাচন করুন"
+          options={AREA_TYPE_OPTIONS}
+          onSelect={handleAreaTypeSelect}
+          onOpen={() => scrollToField('areaType')}
         />
       </View>
 
-      <View style={styles.inputGroup} onLayout={onFieldLayout('village')}>
-        <Text style={styles.label}>Village (গ্রাম):</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="গ্রামের নাম লিখুন..."
-          placeholderTextColor="#999"
-          value={village}
-          onChangeText={setVillage}
-          onFocus={() => handleFieldFocus('village')}
-          onBlur={handleFieldBlur}
-        />
-      </View>
+      {areaType !== '' && (
+        <View style={styles.inputGroup} onLayout={onFieldLayout('areaName')}>
+          <DropdownField
+            key={'name-' + areaType}
+            label={areaType === AREA_TYPE_UNION ? 'Union (ইউনিয়নের নাম):' : 'Pourashava (পৌরসভার নাম):'}
+            value={areaName}
+            placeholder={areaType === AREA_TYPE_UNION ? 'ইউনিয়ন নির্বাচন করুন' : 'পৌরসভা নির্বাচন করুন'}
+            options={AREA_NAMES[areaType] || []}
+            onSelect={handleAreaNameSelect}
+            onOpen={() => scrollToField('areaName')}
+          />
+        </View>
+      )}
+
+      {areaName !== '' && (
+        <View style={styles.inputGroup} onLayout={onFieldLayout('ward')}>
+          <DropdownField
+            key={'ward-' + areaName}
+            label="Ward No (ওয়ার্ড নং):"
+            value={ward}
+            placeholder="ওয়ার্ড নির্বাচন করুন"
+            options={WARD_OPTIONS}
+            onSelect={setWard}
+            onOpen={() => scrollToField('ward')}
+          />
+        </View>
+      )}
 
       <View style={styles.inputGroup} onLayout={onFieldLayout('upazila')}>
         <Text style={styles.label}>Upazila (উপজেলা):</Text>
