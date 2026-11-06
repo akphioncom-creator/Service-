@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, StatusBar, NativeModules, Image, BackHandler, Alert, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, StatusBar, NativeModules, Image, BackHandler, Alert, ActivityIndicator, Modal, TextInput } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
 
 // কাস্টম সেফ এরিয়া নেটিভ মডিউল ইমপোর্ট করা
@@ -13,12 +14,29 @@ import CreatingCardScreen from './home/creatingcard';
 import EmailChangeScreen from './home/emailchange';
 import SettingScreen from './home/setting';
 import PasswordChangeScreen from './home/passwordchange';
+import LockOptionScreen from './home/lockoption';
 import CardScreen from './home/card'; 
 import LoginScreen from './home/loginscreen';
-import { hasSavedToken, clearToken, setAuthExpiredHandler } from './home/serverApi';
+import { hasSavedToken, clearToken, setAuthExpiredHandler, verifyCurrentPasswordOnServer } from './home/serverApi';
 
-// ব্যাক চাপলে কোন স্ক্রিনে ফিরবে: পাসওয়ার্ড চেঞ্জ থেকে সেটিং-এ, বাকি সব জায়গা থেকে হোমে
-const getBackTarget = (screen) => (screen === 'passwordchange' ? 'setting' : 'home');
+// ব্যাক চাপলে কোন স্ক্রিনে ফিরবে: পাসওয়ার্ড চেঞ্জ ও লক অপশন থেকে সেটিং-এ, বাকি সব জায়গা থেকে হোমে
+const getBackTarget = (screen) => (screen === 'passwordchange' || screen === 'lockoption' ? 'setting' : 'home');
+
+// হোমের যে পাঁচটি অপশনের লক আলাদা আলাদা ঠিক করা যায় (lockoption.js এর LOCK_ITEMS এর সাথে মিল)
+const GATED_SCREENS = ['qrscanner', 'addnew', 'personlist', 'creatingcard', 'setting'];
+
+// লকের শুরুর মান (প্রথমবার বা ফোনে কিছু সংরক্ষিত না থাকলে): আগের আচরণই বজায়: কিউআর স্ক্যানারে ফিঙ্গারপ্রিন্ট নেই, বাকিতে আছে; কোথাও পাসওয়ার্ড নেই
+const DEFAULT_LOCK_SETTINGS = {
+  fingerprint: { qrscanner: false, addnew: true, personlist: true, creatingcard: true, setting: true },
+  password: { qrscanner: false, addnew: false, personlist: false, creatingcard: false, setting: false },
+};
+const LOCK_STORAGE_KEY = 'app_lock_settings';
+
+// ফোনে সংরক্ষিত লক সেটিংকে শুরুর মানের সাথে মিলিয়ে নেওয়া (কোনো কী বাদ পড়লে শুরুর মান বসে)
+const mergeLockSettings = (saved) => ({
+  fingerprint: { ...DEFAULT_LOCK_SETTINGS.fingerprint, ...((saved && saved.fingerprint) || {}) },
+  password: { ...DEFAULT_LOCK_SETTINGS.password, ...((saved && saved.password) || {}) },
+});
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState('home');
@@ -26,6 +44,16 @@ export default function App() {
   const [insets, setInsets] = useState({ top: 0, bottom: 0, left: 0, right: 0 });
   // লগইনের অবস্থা: 'checking' (দেখা হচ্ছে) | 'loggedOut' | 'loggedIn'
   const [authState, setAuthState] = useState('checking');
+
+  // কোন অপশনে ফিঙ্গারপ্রিন্ট ও কোনটিতে পাসওয়ার্ড লাগবে (এই ফোনে সংরক্ষিত থাকে)
+  const [lockSettings, setLockSettings] = useState(DEFAULT_LOCK_SETTINGS);
+
+  // পাসওয়ার্ড চাওয়ার ছোট বক্স (ঢোকার আগে অ্যাপের পাসওয়ার্ড যাচাই)
+  const [promptVisible, setPromptVisible] = useState(false);
+  const [promptPassword, setPromptPassword] = useState('');
+  const [promptError, setPromptError] = useState('');
+  const [promptBusy, setPromptBusy] = useState(false);
+  const promptActionRef = useRef(null); // পাসওয়ার্ড মিললে যে কাজটি হবে
 
   // বের হওয়ার কনফার্মেশন বক্স একসাথে একাধিকবার খোলা ঠেকানোর জন্য
   const exitDialogOpenRef = useRef(false);
@@ -42,6 +70,73 @@ export default function App() {
       isActive = false;
     };
   }, []);
+
+  // অ্যাপ খোলার সময় ফোনে সংরক্ষিত লক সেটিং পড়া
+  useEffect(() => {
+    let isActive = true;
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(LOCK_STORAGE_KEY);
+        if (raw && isActive) setLockSettings(mergeLockSettings(JSON.parse(raw)));
+      } catch (e) {
+        // পড়া না গেলে শুরুর মানই থাকবে
+      }
+    })();
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  // লক সেটিং বদলালে সঙ্গে সঙ্গে কাজে লাগানো ও ফোনে সংরক্ষণ
+  const updateLockSettings = (next) => {
+    const merged = mergeLockSettings(next);
+    setLockSettings(merged);
+    AsyncStorage.setItem(LOCK_STORAGE_KEY, JSON.stringify(merged)).catch(() => {
+      Alert.alert('ত্রুটি', 'লক সেটিং ফোনে সংরক্ষণ করা যায়নি।');
+    });
+  };
+
+  // পাসওয়ার্ড বক্স খোলা: অ্যাপের পাসওয়ার্ড মিললে তবেই onSuccess চলবে
+  const requirePassword = (onSuccess) => {
+    promptActionRef.current = onSuccess;
+    setPromptPassword('');
+    setPromptError('');
+    setPromptBusy(false);
+    setPromptVisible(true);
+  };
+
+  const closePasswordPrompt = () => {
+    if (promptBusy) return;
+    promptActionRef.current = null;
+    setPromptVisible(false);
+    setPromptPassword('');
+    setPromptError('');
+  };
+
+  // পাসওয়ার্ড সার্ভারে যাচাই (ভুল হলে লগআউট হয় না, শুধু বার্তা দেখায়)
+  const submitPasswordPrompt = async () => {
+    if (promptBusy) return;
+    if (!promptPassword) {
+      setPromptError('পাসওয়ার্ড লিখুন।');
+      return;
+    }
+
+    setPromptBusy(true);
+    setPromptError('');
+    const result = await verifyCurrentPasswordOnServer(promptPassword);
+    setPromptBusy(false);
+
+    if (!result.ok) {
+      setPromptError(result.message);
+      return;
+    }
+
+    const action = promptActionRef.current;
+    promptActionRef.current = null;
+    setPromptVisible(false);
+    setPromptPassword('');
+    if (action) action();
+  };
 
   // সার্ভার টোকেন না মানলে (মেয়াদ শেষ বা বাতিল) নিজে নিজে লগইন স্ক্রিনে ফেরা
   useEffect(() => {
@@ -177,16 +272,27 @@ export default function App() {
 
   // স্ক্রিন পরিবর্তনের সময় সিকিউরিটি লক চেক করার ফাংশন
   const handleScreenChange = (targetScreen) => {
-    // যদি লক্ষ্য করা স্ক্রিনটি 'home', 'cardview' অথবা 'qrscanner' হয়, তবে কোনো লক ছাড়াই সরাসরি প্রবেশ করতে দেবে
-    if (targetScreen === 'home' || targetScreen === 'cardview' || targetScreen === 'qrscanner') {
+    // 'home' ও 'cardview' (নতুন ব্যক্তি যুক্ত করার পর কার্ড দেখা) এ সবসময় সরাসরি যাওয়া যায়
+    if (targetScreen === 'home' || targetScreen === 'cardview') {
       setCurrentScreen(targetScreen);
       return;
     }
 
-    // অন্য নির্দিষ্ট স্ক্রিনগুলোতে যাওয়ার আগে ফিঙ্গারপ্রিন্ট বা সিকিউরিটি লক ভেরিফাই করবে
-    authenticateUser(() => {
-      setCurrentScreen(targetScreen);
-    });
+    const enter = () => setCurrentScreen(targetScreen);
+
+    // হোমের পাঁচ অপশনের লক "লক অপশন" থেকে ঠিক করা; অন্য কোনো স্ক্রিনে আগের মতো ফিঙ্গারপ্রিন্ট লাগবে, পাসওয়ার্ড নয়
+    const isGated = GATED_SCREENS.includes(targetScreen);
+    const needFingerprint = isGated ? lockSettings.fingerprint[targetScreen] : true;
+    const needPassword = isGated ? lockSettings.password[targetScreen] : false;
+
+    // ক্রম: আগে ফিঙ্গারপ্রিন্ট/পিন (লাগলে), তারপর পাসওয়ার্ড (লাগলে), তারপর ঢোকা
+    const afterFingerprint = () => {
+      if (needPassword) requirePassword(enter);
+      else enter();
+    };
+
+    if (needFingerprint) authenticateUser(afterFingerprint);
+    else afterFingerprint();
   };
 
   // নেভিগেশনের জন্য স্ক্রিন রেন্ডার করার ফাংশন
@@ -218,6 +324,16 @@ export default function App() {
           <SettingScreen
             onBack={() => handleScreenChange('home')}
             onOpenPasswordChange={() => setCurrentScreen('passwordchange')}
+            // লক অপশন বদলানোর পাতায় ঢুকতে সবসময় পাসওয়ার্ড লাগে, নইলে সেটিং-এর ফিঙ্গারপ্রিন্ট বন্ধ করে যে কেউ সব লক খুলে ফেলতে পারত
+            onOpenLockOption={() => requirePassword(() => setCurrentScreen('lockoption'))}
+          />
+        );
+      case 'lockoption':
+        return (
+          <LockOptionScreen
+            settings={lockSettings}
+            onChange={updateLockSettings}
+            onBack={() => setCurrentScreen('setting')}
           />
         );
       case 'passwordchange':
