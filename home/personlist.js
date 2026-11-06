@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { StyleSheet, Text, View, TextInput, FlatList, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import API from './apiConfig';
-import { fetchCardsFromServer, deleteCardOnServer, getAuthToken } from '../../serverApi';
+import API from '../../apiConfig';
+import { fetchCardsFromServer, deleteCardOnServer, getAuthToken } from '../serverApi';
 
 // স্ক্যানের চিহ্ন (লাল/সবুজ) এখনো ফোনেই জমা থাকে, তাই শুধু সেই চিহ্ন পড়ার জন্য এই কী ব্যবহার হয়
 // ব্যক্তির তথ্য এখন আর এখান থেকে আসে না, সবই সার্ভার থেকে আসে
