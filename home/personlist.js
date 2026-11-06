@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { StyleSheet, Text, View, TextInput, FlatList, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import API from '../apiConfig';
-import { fetchCardsFromServer, deleteCardOnServer, getAuthToken } from './serverApi';
+import {
+  fetchCardsFromServer,
+  deleteCardOnServer,
+  getAuthToken,
+  resetAllScansOnServer,
+  fetchScanSummary,
+} from './serverApi';
 
-// স্ক্যানের চিহ্ন (লাল/সবুজ) এখনো ফোনেই জমা থাকে, তাই শুধু সেই চিহ্ন পড়ার জন্য এই কী ব্যবহার হয়
-// ব্যক্তির তথ্য এখন আর এখান থেকে আসে না, সবই সার্ভার থেকে আসে
-const SCAN_STORAGE_KEY = 'persistent_numbers_data';
+// ব্যক্তির তথ্য ও স্ক্যানের চিহ্ন (লাল/সবুজ) দুটোই এখন সার্ভার থেকে আসে (item.scannedAt)
 const PAGE_SIZE = 30;
 
 // যেকোনো মানকে নিরাপদে স্ট্রিং-এ রূপান্তর (খালি/undefined হলে ক্র্যাশ এড়াতে)
@@ -21,26 +24,6 @@ const formatDateTime = (iso) => {
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-// ফোনে জমা স্ক্যানের চিহ্নগুলো ইউনিক কোড ধরে একটি তালিকায় সাজানো: { কোড: { scannedAt } }
-const loadScanMap = async () => {
-  try {
-    const data = await AsyncStorage.getItem(SCAN_STORAGE_KEY);
-    const parsed = data ? JSON.parse(data) : [];
-    const map = {};
-    if (Array.isArray(parsed)) {
-      parsed.forEach((r) => {
-        if (r && r.uniqueCode && r.scanned) {
-          map[String(r.uniqueCode)] = { scannedAt: r.scannedAt || null };
-        }
-      });
-    }
-    return map;
-  } catch (error) {
-    console.error('Scan data read error:', error);
-    return {};
-  }
-};
-
 export default function PersonListScreen({ onBack }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -52,7 +35,7 @@ export default function PersonListScreen({ onBack }) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [token, setToken] = useState(null); // ছবি দেখানোর জন্য
-  const [scanMap, setScanMap] = useState({});
+  const [restarting, setRestarting] = useState(false); // রিস্টার্ট চলাকালীন বারবার চাপ ঠেকাতে
 
   const mountedRef = useRef(true);
   const requestIdRef = useRef(0); // দ্রুত সার্চ করলে পুরনো উত্তর যেন নতুনটাকে ঢেকে না দেয়
@@ -76,10 +59,9 @@ export default function PersonListScreen({ onBack }) {
     if (!mountedRef.current || reqId !== requestIdRef.current) return;
 
     if (result.ok) {
-      const [map, tk] = await Promise.all([loadScanMap(), getAuthToken().catch(() => null)]);
+      const tk = await getAuthToken().catch(() => null);
       if (!mountedRef.current || reqId !== requestIdRef.current) return;
 
-      setScanMap(map);
       if (tk) setToken(tk);
       setItems((prev) =>
         mode === 'more'
@@ -127,33 +109,47 @@ export default function PersonListScreen({ onBack }) {
     setTotal((prev) => Math.max(0, prev - 1));
   };
 
-  // রিস্টার্ট: সবার স্ক্যানের চিহ্ন মুছে ফেলা, ফলে সবাই আবার সবুজ হবে (স্ক্যানের চিহ্ন ফোনে জমা থাকে)
+  // রিস্টার্ট: সার্ভারে সবার স্ক্যানের চিহ্ন মুছে ফেলা, ফলে সবাই আবার সবুজ হবে এবং সবার কার্ড আবার স্ক্যান করা যাবে
+  // সার্ভার সফল না হলে কিছুই বদলায় না এবং কারণ দেখানো হয় (সার্ভারে শুধু admin পারে)
   const restartAll = async () => {
+    if (restarting) return;
+    setRestarting(true);
     try {
-      const data = await AsyncStorage.getItem(SCAN_STORAGE_KEY);
-      const parsed = data ? JSON.parse(data) : [];
-      const cleaned = Array.isArray(parsed)
-        ? parsed.map((record) => {
-            const { scanned, scannedAt, ...rest } = record;
-            return rest;
-          })
-        : [];
-      await AsyncStorage.setItem(SCAN_STORAGE_KEY, JSON.stringify(cleaned));
-      setScanMap({});
+      const result = await resetAllScansOnServer();
+      if (!mountedRef.current) return;
 
-      Alert.alert('সফল', 'রিস্টার্ট সম্পন্ন হয়েছে। সবাই এখন আবার সবুজ।');
+      if (!result.ok) {
+        Alert.alert(
+          'রিস্টার্ট হয়নি',
+          result.status === 403 ? 'শুধু অ্যাডমিন রিস্টার্ট করতে পারে।' : result.message
+        );
+        return;
+      }
+
+      // তালিকার সবার চিহ্ন সঙ্গে সঙ্গে সবুজ করা, তারপর সার্ভার থেকে নতুন করে আনা
+      setItems((prev) => prev.map((r) => ({ ...r, scannedAt: null })));
+      loadPage(1, debouncedQuery, 'refresh');
+
+      Alert.alert('সফল', 'সার্ভারে রিস্টার্ট সম্পন্ন হয়েছে। সবাই এখন আবার সবুজ, সবার কার্ড আবার স্ক্যান করা যাবে।');
     } catch (err) {
       console.error('Restart error:', err);
       Alert.alert('ত্রুটি', 'রিস্টার্ট করার সময় একটি সমস্যা হয়েছে।');
+    } finally {
+      if (mountedRef.current) setRestarting(false);
     }
   };
 
   // রিস্টার্ট বাটনে চাপ দিলে ৩ ধাপের সতর্কবার্তা, তিন ধাপ পার হলে তবেই রিস্টার্ট হবে
-  const confirmRestart = () => {
-    if (Object.keys(scanMap).length === 0) {
+  // রিস্টার্ট করার মতো স্ক্যান আছে কিনা সার্ভারের হিসাব থেকে দেখা হয় (তালিকার শুধু বর্তমান পাতা নয়)
+  const confirmRestart = async () => {
+    if (restarting) return;
+
+    const summary = await fetchScanSummary();
+    if (summary.ok && summary.scanned === 0) {
       Alert.alert('রিস্টার্ট', 'রিস্টার্ট করার মতো কোনো স্ক্যান করা তথ্য নেই।');
       return;
     }
+    // সার্ভারের হিসাব না পেলে (নেট সমস্যা) এখানে আটকানো হয় না; রিস্টার্টের সময়ই ত্রুটি জানানো হবে
 
     Alert.alert(
       'সতর্কতা (১/৩)',
@@ -218,8 +214,16 @@ export default function PersonListScreen({ onBack }) {
         />
 
         {/* রিস্টার্ট বাটন */}
-        <TouchableOpacity style={styles.restartBtn} onPress={confirmRestart}>
-          <Text style={styles.restartIcon}>↻</Text>
+        <TouchableOpacity
+          style={[styles.restartBtn, restarting && { opacity: 0.5 }]}
+          onPress={confirmRestart}
+          disabled={restarting}
+        >
+          {restarting ? (
+            <ActivityIndicator color="#1A365D" />
+          ) : (
+            <Text style={styles.restartIcon}>↻</Text>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -248,7 +252,8 @@ export default function PersonListScreen({ onBack }) {
         }
         renderItem={({ item, index }) => {
           // একবার স্ক্যান হলে লাল, একবারও স্ক্যান না হলে সবুজ
-          const scan = scanMap[safeText(item.uniqueCode)];
+          // স্ক্যানের তথ্য সার্ভার থেকে আসে (scannedAt থাকলে স্ক্যান হয়েছে)
+          const scan = item.scannedAt ? { scannedAt: item.scannedAt } : null;
           const isScanned = !!scan;
 
           // ব্যক্তির ছবি সার্ভার থেকে আসে (লগইন-টোকেন সহ)
@@ -272,9 +277,16 @@ export default function PersonListScreen({ onBack }) {
                   <Text style={styles.detailText}>মোবাইল: {item.phone}</Text>
                 ) : null}
 
-                {item.district || item.upazila || item.village ? (
+                {item.district || item.upazila || item.areaName || item.village ? (
                   <Text style={styles.detailText}>
-                    {[item.district, item.upazila, item.village ? 'গ্রাম: ' + item.village : '']
+                    {[
+                      item.district,
+                      item.upazila,
+                      item.areaName || item.village
+                        ? (item.areaType === 'পৌরসভা' ? 'পৌরসভা: ' : 'ইউনিয়ন: ') + (item.areaName || item.village)
+                        : '',
+                      item.ward ? 'ওয়ার্ড: ' + item.ward : '',
+                    ]
                       .filter(Boolean)
                       .join(', ')}
                   </Text>
