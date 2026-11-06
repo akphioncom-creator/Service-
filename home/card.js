@@ -210,6 +210,8 @@ export default function CardScreen({ cardData, onBack }) {
           district: cardData.district || '',
           upazila: cardData.upazila || '',
           village: cardData.village || '',
+          areaType: cardData.areaType || '',
+          areaName: cardData.areaName || '',
           image: cardData.image || '',
           createdAt: createdAtValue,
         };
@@ -385,7 +387,10 @@ export default function CardScreen({ cardData, onBack }) {
             )}
             {renderPhotoHaze(s)}
           </View>
-          <Text style={cs.cardAddressText}>গ্রাম: {cardData.village}</Text>
+          {/* গ্রামের জায়গায় ইউনিয়ন/পৌরসভার নাম (আগের কার্ডে areaName না থাকলে পুরোনো village দেখাবে) */}
+          <Text style={cs.cardAddressText}>
+            {cardData.areaType === 'পৌরসভা' ? 'পৌরসভা' : 'ইউনিয়ন'}: {cardData.areaName || cardData.village}
+          </Text>
           <Text style={cs.cardAddressText}>ওয়ার্ড নং: {cardData.ward}</Text>
           <Text style={cs.cardAddressText}>থানা: {cardData.upazila}</Text>
           <Text style={cs.cardAddressText}>জেলা: {cardData.district}</Text>
