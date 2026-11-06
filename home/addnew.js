@@ -235,6 +235,8 @@ export default function AddNewScreen({ onNext, onBack }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   // এনআইডি সার্ভারে আছে কিনা: 'idle' | 'checking' | 'exists' (আগেই আছে) | 'available' (নতুন) | 'error' (যাচাই করা যায়নি)
   const [nidStatus, setNidStatus] = useState('idle');
+  // স্বামী/স্ত্রীর এনআইডির অবস্থা: 'idle' | 'checking' | 'exists' (সার্ভারে আগেই কার্ড আছে) | 'same' (নিজের এনআইডির সমান) | 'available' | 'error'
+  const [spouseStatus, setSpouseStatus] = useState('idle');
   const cameraRef = useRef(null);
   const { width: winWidth, height: winHeight } = useWindowDimensions();
   // ক্যামেরার মাঝের বর্গাকার ফ্রেমের মাপ: শুধু এই ফ্রেমের ভেতরের অংশটুকুই সেভ হবে
@@ -294,6 +296,41 @@ export default function AddNewScreen({ onNext, onBack }) {
       clearTimeout(timer);
     };
   }, [nid]);
+
+  // স্বামী/স্ত্রীর এনআইডি লেখার সময়ও একইভাবে যাচাই: সার্ভারে এই নম্বরের কার্ড থাকলে নিবন্ধন করা যাবে না
+  useEffect(() => {
+    if (maritalStatus !== MARRIED) {
+      setSpouseStatus('idle');
+      return undefined;
+    }
+
+    const value = toEnglishDigits(spouseNid).trim();
+    if (!value || !/^\d+$/.test(value)) {
+      setSpouseStatus('idle');
+      return undefined;
+    }
+    if (value === toEnglishDigits(nid).trim()) {
+      setSpouseStatus('same');
+      return undefined;
+    }
+
+    setSpouseStatus('checking');
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const result = await checkNidOnServer(value);
+      if (cancelled) return;
+      setSpouseStatus(result.ok ? (result.exists ? 'exists' : 'available') : 'error');
+    }, 600);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [spouseNid, nid, maritalStatus]);
+
+  // নিজের এনআইডি বা (বিবাহিত হলে) স্বামী/স্ত্রীর এনআইডি সার্ভারে থাকলে, অথবা জমা চলতে থাকলে নেক্সট বাটন বন্ধ
+  const spouseBlocked = maritalStatus === MARRIED && (spouseStatus === 'exists' || spouseStatus === 'same');
+  const nextBlocked = isSubmitting || nidStatus === 'exists' || spouseBlocked;
 
   // জন্ম তারিখ সঠিক হলে বয়স নিজে থেকে হিসাব হবে, না হলে null
   const ageInfo = calculateAge(dob);
@@ -544,6 +581,16 @@ export default function AddNewScreen({ onNext, onBack }) {
       Alert.alert('আগেই নিবন্ধিত', 'এই এনআইডি নম্বর সার্ভারে আগেই আছে, তাই এই নম্বরে নতুন নিবন্ধন করা যাবে না।');
       return;
     }
+
+    // স্বামী/স্ত্রীর এনআইডি সার্ভারে আগেই থাকলে বা নিজের এনআইডির সমান হলে নিবন্ধন হবে না
+    if (maritalStatus === MARRIED && spouseStatus === 'exists') {
+      Alert.alert('নিবন্ধন করা যাবে না', 'স্বামী/স্ত্রীর এনআইডি নম্বর দিয়ে সার্ভারে আগেই কার্ড আছে, তাই এই নিবন্ধন করা যাবে না।');
+      return;
+    }
+    if (maritalStatus === MARRIED && spouseStatus === 'same') {
+      Alert.alert('সতর্কতা', 'নিজের এনআইডি ও স্বামী/স্ত্রীর এনআইডি এক হতে পারে না।');
+      return;
+    }
     if (
       !name.trim() || !fatherName.trim() || !motherName.trim() || !nid.trim() || !phone.trim() ||
       !dob.trim() || !gender || !maritalStatus || !occupation || !socialStatus || !ward.trim() ||
@@ -572,6 +619,15 @@ export default function AddNewScreen({ onNext, onBack }) {
         setNidStatus('exists');
         Alert.alert('আগেই নিবন্ধিত', 'এই এনআইডি নম্বর সার্ভারে আগেই আছে, তাই এই নম্বরে নতুন নিবন্ধন করা যাবে না।');
         return;
+      }
+
+      if (maritalStatus === MARRIED && spouseNid.trim()) {
+        const freshSpouse = await checkNidOnServer(toEnglishDigits(spouseNid).trim());
+        if (freshSpouse.ok && freshSpouse.exists) {
+          setSpouseStatus('exists');
+          Alert.alert('নিবন্ধন করা যাবে না', 'স্বামী/স্ত্রীর এনআইডি নম্বর দিয়ে সার্ভারে আগেই কার্ড আছে, তাই এই নিবন্ধন করা যাবে না।');
+          return;
+        }
       }
 
       const existingData = await AsyncStorage.getItem(STORAGE_KEY);
@@ -611,7 +667,7 @@ export default function AddNewScreen({ onNext, onBack }) {
 
       if (!result.ok) {
         if (result.status === 409) {
-          Alert.alert('আগেই নিবন্ধিত', 'এই এনআইডি দিয়ে কার্ড আগেই তৈরি করা আছে।');
+          Alert.alert('নিবন্ধন করা যাবে না', result.message);
         } else {
           Alert.alert('সার্ভারে সংরক্ষণ হয়নি', result.message);
         }
@@ -824,7 +880,7 @@ export default function AddNewScreen({ onNext, onBack }) {
         <View style={styles.inputGroup} onLayout={onFieldLayout('spouseNid')}>
           <Text style={styles.label}>Spouse NID Card No. (স্বামী/স্ত্রীর এনআইডি নম্বর): *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, (spouseStatus === 'exists' || spouseStatus === 'same') && styles.inputError]}
             placeholder="স্বামী/স্ত্রীর এনআইডি কার্ড নম্বর লিখুন..."
             placeholderTextColor="#999"
             value={spouseNid}
@@ -833,6 +889,27 @@ export default function AddNewScreen({ onNext, onBack }) {
             onFocus={() => handleFieldFocus('spouseNid')}
             onBlur={handleFieldBlur}
           />
+          {spouseStatus === 'checking' && (
+            <Text style={[styles.nidStatusText, styles.nidChecking]}>সার্ভারে যাচাই হচ্ছে...</Text>
+          )}
+          {spouseStatus === 'exists' && (
+            <Text style={[styles.nidStatusText, styles.nidExists]}>
+              এই নম্বর দিয়ে সার্ভারে আগেই কার্ড আছে, তাই নিবন্ধন করা যাবে না।
+            </Text>
+          )}
+          {spouseStatus === 'same' && (
+            <Text style={[styles.nidStatusText, styles.nidExists]}>
+              নিজের এনআইডি ও স্বামী/স্ত্রীর এনআইডি এক হতে পারে না।
+            </Text>
+          )}
+          {spouseStatus === 'available' && (
+            <Text style={[styles.nidStatusText, styles.nidAvailable]}>এই নম্বর সার্ভারে নেই, ঠিক আছে।</Text>
+          )}
+          {spouseStatus === 'error' && (
+            <Text style={[styles.nidStatusText, styles.nidChecking]}>
+              যাচাই করা যায়নি (ইন্টারনেট/সার্ভার দেখুন)। জমা দেওয়ার সময় আবার যাচাই হবে।
+            </Text>
+          )}
         </View>
       )}
 
@@ -913,9 +990,9 @@ export default function AddNewScreen({ onNext, onBack }) {
 
       {/* নেক্সট বাটন */}
       <TouchableOpacity
-        style={[styles.btn, (isSubmitting || nidStatus === 'exists') && { opacity: 0.5 }]}
+        style={[styles.btn, nextBlocked && { opacity: 0.5 }]}
         onPress={handleNext}
-        disabled={isSubmitting || nidStatus === 'exists'}
+        disabled={nextBlocked}
       >
         {isSubmitting ? (
           <ActivityIndicator color="#fff" />
