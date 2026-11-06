@@ -25,6 +25,11 @@ export const API = {
   cardEvents: (code) => apiUrl(`/api/cards/${code}/events`),           // card_opened / card_saved জানানো
   cardRestore: (code) => apiUrl(`/api/cards/${code}/restore`),         // মুছে ফেলা কার্ড ফেরানো (admin)
 
+  // অনুদানের কার্ড স্ক্যান
+  cardScan: (code) => apiUrl(`/api/cards/${code}/scan`),               // POST: স্ক্যান (একবারই চলবে)
+  scansSummary: () => apiUrl('/api/cards/scans/summary'),              // GET: মোট ও স্ক্যান হওয়া কার্ডের সংখ্যা
+  scansReset: () => apiUrl('/api/cards/scans/reset'),                  // POST: নতুন দফা শুরু, সব কার্ড আবার স্ক্যানযোগ্য (admin)
+
   // কিউআর যাচাই (লগইন লাগে না)
   verify: (code) => apiUrl(`/api/verify/${code}`),
 };
