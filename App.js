@@ -459,9 +459,60 @@ export default function App() {
       {/* ফুটার */}
       <View style={styles.footer}>
         <Text style={[styles.footerText, styles.lightSubText]}>
-          &copy; Made by Akphion 
+          &copy; Made by Akphion
         </Text>
       </View>
+
+      {/* পাসওয়ার্ড চাওয়ার বক্স: লক অপশনে "পাসওয়ার্ড" চালু থাকা স্ক্রিনে ঢোকার আগে এবং লক অপশন পাতায় ঢোকার আগে আসে */}
+      <Modal
+        visible={promptVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closePasswordPrompt}
+      >
+        <View style={styles.promptOverlay}>
+          <View style={styles.promptBox}>
+            <Text style={styles.promptTitle}>পাসওয়ার্ড দিন</Text>
+            <Text style={styles.promptDesc}>এখানে ঢুকতে অ্যাপের পাসওয়ার্ড লাগবে।</Text>
+
+            <TextInput
+              style={[styles.promptInput, !!promptError && styles.promptInputError]}
+              placeholder="পাসওয়ার্ড লিখুন..."
+              placeholderTextColor="#999"
+              value={promptPassword}
+              onChangeText={(text) => {
+                setPromptPassword(text);
+                setPromptError('');
+              }}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+              editable={!promptBusy}
+              returnKeyType="done"
+              onSubmitEditing={submitPasswordPrompt}
+            />
+            {promptError ? <Text style={styles.promptError}>{promptError}</Text> : null}
+
+            <View style={styles.promptButtons}>
+              <TouchableOpacity
+                style={[styles.promptBtn, styles.promptCancelBtn]}
+                onPress={closePasswordPrompt}
+                disabled={promptBusy}
+              >
+                <Text style={styles.promptBtnText}>বাতিল</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.promptBtn, styles.promptOkBtn, (promptBusy || !promptPassword) && { opacity: 0.5 }]}
+                onPress={submitPasswordPrompt}
+                disabled={promptBusy || !promptPassword}
+              >
+                {promptBusy ? <ActivityIndicator color="#fff" /> : <Text style={styles.promptBtnText}>ঠিক আছে</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -565,4 +616,38 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 12,
   },
+
+  /* পাসওয়ার্ড চাওয়ার বক্স */
+  promptOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  promptBox: {
+    width: '100%',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 20,
+  },
+  promptTitle: { fontSize: 18, fontWeight: 'bold', color: '#1A365D' },
+  promptDesc: { fontSize: 13, color: '#666', marginTop: 4, marginBottom: 14 },
+  promptInput: {
+    height: 48,
+    borderWidth: 1,
+    borderColor: '#ced4da',
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    backgroundColor: '#fff',
+    fontSize: 16,
+    color: '#000',
+  },
+  promptInputError: { borderColor: '#dc3545', borderWidth: 2 },
+  promptError: { fontSize: 12, color: '#dc3545', fontWeight: 'bold', marginTop: 6 },
+  promptButtons: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 18 },
+  promptBtn: { paddingVertical: 10, paddingHorizontal: 20, borderRadius: 8, marginLeft: 10, minWidth: 90, alignItems: 'center' },
+  promptCancelBtn: { backgroundColor: '#6c757d' },
+  promptOkBtn: { backgroundColor: '#28a745' },
+  promptBtnText: { color: '#fff', fontSize: 15, fontWeight: 'bold' },
 });
