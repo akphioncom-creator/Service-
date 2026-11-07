@@ -3,10 +3,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import API from '../apiConfig';
 
 const TOKEN_KEY = 'server_auth_token';
-const TIMEOUT_MS = 25000;
+const TIMEOUT_MS = 50000; // রেন্ডার সার্ভারের কোল্ড স্টার্ট বা স্লো নেটওয়ার্কের কথা মাথায় রেখে সময় বাড়িয়ে ৫০ সেকেন্ড করা হয়েছে
 const NETWORK_ERROR_MESSAGE = 'সার্ভারের সাথে যোগাযোগ করা যায়নি। ইন্টারনেট সংযোগ দেখে আবার চেষ্টা করুন।';
 
-// সময়সীমা দিয়ে fetch: নেট খুব ধীর হলে অনন্তকাল ঝুলে থাকবে না
+// সময়সীমা দিয়ে fetch: নেট খুব ধীর হলে বা সার্ভার জাগতে সময় নিলে যেন হঠাৎ ঝুলে না যায়
 async function fetchWithTimeout(url, options = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
