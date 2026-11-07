@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Switch } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Switch } from 'react-native';
 
 // অ্যাপ খুললে হোমে যে পাঁচটি অপশন দেখায়, সেগুলোর নাম (App.js এর GATED_SCREENS এর সাথে মিল রাখতে হবে)
 export const LOCK_ITEMS = [
@@ -82,16 +82,12 @@ export default function LockOptionScreen({ settings, onChange, onBack }) {
         • এই সেটিং শুধু এই ফোনের জন্য; অন্য ফোনে আলাদা করে ঠিক করতে হবে।{'\n'}
         • ফোনে ফিঙ্গারপ্রিন্ট বা স্ক্রিন লক সেট না থাকলে ফিঙ্গারপ্রিন্টের লক কাজ করবে না, তখন পাসওয়ার্ড লক ব্যবহার করুন।
       </Text>
-
-      <TouchableOpacity style={[styles.btn, styles.backBtn]} onPress={onBack}>
-        <Text style={styles.btnText}>ফিরে যান</Text>
-      </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: 15, backgroundColor: '#f8f9fa', paddingTop: 30 },
+  container: { flexGrow: 1, padding: 15, backgroundColor: '#f8f9fa', paddingTop: 30, paddingBottom: 30 },
   mainTitle: { fontSize: 22, fontWeight: 'bold', textAlign: 'center', color: '#1A365D' },
   subTitle: { fontSize: 14, textAlign: 'center', color: '#666', marginBottom: 16, marginTop: 2 },
 
@@ -105,8 +101,4 @@ const styles = StyleSheet.create({
   rowDesc: { fontSize: 12, color: '#888', marginTop: 1 },
 
   noteText: { fontSize: 12, color: '#777', lineHeight: 19, marginTop: 4 },
-
-  btn: { paddingVertical: 12, borderRadius: 8, alignItems: 'center', marginTop: 20 },
-  backBtn: { backgroundColor: '#6c757d', marginBottom: 30 },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });
