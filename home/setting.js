@@ -1,9 +1,21 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert } from 'react-native';
 
 // সেটিং পাতা: এখানে একটি অপশন — "পাসওয়ার্ড চেঞ্জ" (কোনো আইকন ছাড়া)। চাপলে পাসওয়ার্ড চেঞ্জ স্ক্রিন খোলে।
 // নতুন সেটিং যোগ করতে চাইলে নিচের তালিকার মতো আরেকটি অপশন বসালেই হবে।
 export default function SettingScreen({ onBack, onOpenPasswordChange, onOpenLockOption }) {
+  // App.js পুরোনো থাকলে onOpenLockOption আসে না, তখন চাপলে কিছুই হতো না; এখন কারণটা বলে দেয়
+  const openLockOption = () => {
+    if (typeof onOpenLockOption === 'function') {
+      onOpenLockOption();
+      return;
+    }
+    Alert.alert(
+      'App.js আপডেট করুন',
+      'লক অপশন খুলতে নতুন App.js লাগবে। নতুন App.js ও lockoption.js home ফোল্ডারে বসিয়ে অ্যাপ আবার চালান।'
+    );
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.mainTitle}>Setting</Text>
@@ -18,7 +30,7 @@ export default function SettingScreen({ onBack, onOpenPasswordChange, onOpenLock
           <Text style={styles.arrow}>›</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.optionRow, styles.optionRowLast]} onPress={onOpenLockOption} activeOpacity={0.7}>
+        <TouchableOpacity style={[styles.optionRow, styles.optionRowLast]} onPress={openLockOption} activeOpacity={0.7}>
           <View style={{ flex: 1 }}>
             <Text style={styles.optionTitle}>lock option</Text>
             <Text style={styles.optionDesc}>কোন অপশনে ফিঙ্গারপ্রিন্ট বা পাসওয়ার্ড লাগবে ঠিক করুন</Text>
