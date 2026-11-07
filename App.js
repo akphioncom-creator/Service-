@@ -618,12 +618,14 @@ const styles = StyleSheet.create({
   },
 
   /* পাসওয়ার্ড চাওয়ার বক্স */
+  // বক্স পর্দার ওপরের দিকে বসে (মাঝখানে নয়), যাতে কিবোর্ড উঠলেও নিচের বাটন দুটি ঢাকা না পড়ে
   promptOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
-    padding: 24,
+    paddingHorizontal: 24,
+    paddingTop: 70,
   },
   promptBox: {
     width: '100%',
