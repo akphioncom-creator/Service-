@@ -2,7 +2,7 @@
 // সার্ভারের ঠিকানা বদলালে (যেমন নতুন কোডস্পেস বা আসল হোস্টিং) শুধু নিচের BASE_URL বদলালেই সব ফাইলে বদলে যাবে
 
 // ↓↓↓ শুধু এই লাইনটি বদলান (শেষে '/' দেবেন না) ↓↓↓
-export const BASE_URL = 'https://redesigned-enigma-xr4w5gwqjvjq3prx9-3000.app.github.dev';
+export const BASE_URL = 'https://up-server-mk84.onrender.com';
 // ↑↑↑ ----------------------------------------- ↑↑↑
 
 // কোনো পথ (যেমন '/api/cards') থেকে পুরো ঠিকানা বানায়
