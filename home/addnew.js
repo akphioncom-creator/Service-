@@ -77,7 +77,7 @@ const AREA_NAMES = {
   [AREA_TYPE_POURASHAVA]: ['ফুলবাড়ীয়া পৌরসভা'],
 };
 // সব ইউনিয়ন ও পৌরসভায় ওয়ার্ড ১–৯ (ওয়ার্ড নম্বর ইংরেজি সংখ্যায় সংরক্ষিত হয়)
-const WARD_OPTIONS = ['১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+const WARD_OPTIONS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
 // উপজেলা ও জেলা: লেখার বদলে ড্রপডাউন থেকে নির্বাচন
 const UPAZILA_OPTIONS = ['ফুলবাড়িয়া'];
@@ -447,6 +447,36 @@ export default function AddNewScreen({ onNext, onBack }) {
     focusedFieldRef.current = null;
   };
 
+  // স্ক্রলের বর্তমান অবস্থান ও দৃশ্যমান উচ্চতা মনে রাখা (ড্রপডাউন খুললে স্ক্রিন অকারণে নড়ানো ঠেকাতে)
+  const scrollYRef = useRef(0);
+  const viewHeightRef = useRef(0);
+
+  // ড্রপডাউনের একেকটি অপশনের আনুমানিক উচ্চতা ও (লেবেল + বাটন) এর উচ্চতা
+  const OPTION_ITEM_HEIGHT = 48;
+  const DROPDOWN_HEAD_HEIGHT = 76;
+
+  // ড্রপডাউন খুললে স্ক্রিন লাফিয়ে উঠবে না।
+  // অপশনের তালিকা স্ক্রিনের ভেতরে ঢুকে গেলে স্ক্রিন একদম নড়বে না;
+  // নিচে কেটে গেলে শুধু ততটুকুই (নিচের দিকে) আস্তে আস্তে স্ক্রল হবে যতটুকু হলে তালিকা দেখা যায়।
+  const ensureOptionsVisible = (key, optionCount) => {
+    setTimeout(() => {
+      const y = fieldYRef.current[key];
+      const viewH = viewHeightRef.current;
+      if (!scrollRef.current || y === undefined || !viewH) return;
+
+      const needBottom = y + DROPDOWN_HEAD_HEIGHT + optionCount * OPTION_ITEM_HEIGHT + 16;
+      const visibleBottom = scrollYRef.current + viewH;
+      if (needBottom <= visibleBottom) return; // সবটাই দেখা যাচ্ছে, স্ক্রল দরকার নেই
+
+      // তালিকা অনেক লম্বা হলেও ঘরটির নিজের শিরোনাম যেন স্ক্রিনের উপরে হারিয়ে না যায়
+      let target = Math.min(needBottom - viewH, y - 20);
+      target = Math.max(0, target);
+      if (target > scrollYRef.current) {
+        scrollRef.current.scrollTo({ y: target, animated: true });
+      }
+    }, 60);
+  };
+
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
@@ -734,6 +764,13 @@ export default function AddNewScreen({ onNext, onBack }) {
       ref={scrollRef}
       contentContainerStyle={[styles.container, { paddingBottom: 15 + keyboardHeight }]}
       keyboardShouldPersistTaps="handled"
+      onScroll={(e) => {
+        scrollYRef.current = e.nativeEvent.contentOffset.y;
+      }}
+      scrollEventThrottle={16}
+      onLayout={(e) => {
+        viewHeightRef.current = e.nativeEvent.layout.height;
+      }}
     >
       <Text style={styles.mainTitle}>Smart Card Register</Text>
 
@@ -897,7 +934,7 @@ export default function AddNewScreen({ onNext, onBack }) {
           placeholder="লিঙ্গ নির্বাচন করুন"
           options={GENDER_OPTIONS}
           onSelect={setGender}
-          onOpen={() => scrollToField('gender')}
+          onOpen={() => ensureOptionsVisible('gender', GENDER_OPTIONS.length)}
         />
       </View>
 
@@ -908,7 +945,7 @@ export default function AddNewScreen({ onNext, onBack }) {
           placeholder="বৈবাহিক অবস্থা নির্বাচন করুন"
           options={MARITAL_OPTIONS}
           onSelect={handleMaritalSelect}
-          onOpen={() => scrollToField('maritalStatus')}
+          onOpen={() => ensureOptionsVisible('maritalStatus', MARITAL_OPTIONS.length)}
         />
       </View>
 
@@ -957,7 +994,7 @@ export default function AddNewScreen({ onNext, onBack }) {
           placeholder="পেশা নির্বাচন করুন"
           options={OCCUPATION_OPTIONS}
           onSelect={setOccupation}
-          onOpen={() => scrollToField('occupation')}
+          onOpen={() => ensureOptionsVisible('occupation', OCCUPATION_OPTIONS.length)}
         />
       </View>
 
@@ -968,7 +1005,7 @@ export default function AddNewScreen({ onNext, onBack }) {
           placeholder="সামাজিক অবস্থান নির্বাচন করুন"
           options={SOCIAL_STATUS_OPTIONS}
           onSelect={setSocialStatus}
-          onOpen={() => scrollToField('socialStatus')}
+          onOpen={() => ensureOptionsVisible('socialStatus', SOCIAL_STATUS_OPTIONS.length)}
         />
       </View>
 
@@ -980,7 +1017,7 @@ export default function AddNewScreen({ onNext, onBack }) {
           placeholder="ইউনিয়ন / পৌরসভা নির্বাচন করুন"
           options={AREA_TYPE_OPTIONS}
           onSelect={handleAreaTypeSelect}
-          onOpen={() => scrollToField('areaType')}
+          onOpen={() => ensureOptionsVisible('areaType', AREA_TYPE_OPTIONS.length)}
         />
       </View>
 
@@ -993,7 +1030,7 @@ export default function AddNewScreen({ onNext, onBack }) {
             placeholder={areaType === AREA_TYPE_UNION ? 'ইউনিয়ন নির্বাচন করুন' : 'পৌরসভা নির্বাচন করুন'}
             options={AREA_NAMES[areaType] || []}
             onSelect={handleAreaNameSelect}
-            onOpen={() => scrollToField('areaName')}
+            onOpen={() => ensureOptionsVisible('areaName', (AREA_NAMES[areaType] || []).length)}
           />
         </View>
       )}
@@ -1007,7 +1044,7 @@ export default function AddNewScreen({ onNext, onBack }) {
             placeholder="ওয়ার্ড নির্বাচন করুন"
             options={WARD_OPTIONS}
             onSelect={setWard}
-            onOpen={() => scrollToField('ward')}
+            onOpen={() => ensureOptionsVisible('ward', WARD_OPTIONS.length)}
           />
         </View>
       )}
@@ -1019,7 +1056,7 @@ export default function AddNewScreen({ onNext, onBack }) {
           placeholder="উপজেলা নির্বাচন করুন"
           options={UPAZILA_OPTIONS}
           onSelect={setUpazila}
-          onOpen={() => scrollToField('upazila')}
+          onOpen={() => ensureOptionsVisible('upazila', UPAZILA_OPTIONS.length)}
         />
       </View>
 
@@ -1030,7 +1067,7 @@ export default function AddNewScreen({ onNext, onBack }) {
           placeholder="জেলা নির্বাচন করুন"
           options={DISTRICT_OPTIONS}
           onSelect={setDistrict}
-          onOpen={() => scrollToField('district')}
+          onOpen={() => ensureOptionsVisible('district', DISTRICT_OPTIONS.length)}
         />
       </View>
 
