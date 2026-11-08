@@ -10,6 +10,10 @@ const { GalleryModule } = NativeModules;
 // পারসন লিস্ট ফাইলের সাথে একই স্টোরেজ কী (key) ব্যবহার করা হয়েছে
 const STORAGE_KEY = 'persistent_numbers_data';
 
+// তৈরি হওয়া কার্ডের ছবি ক্যাশ মেমোরিতে রাখার তালিকার কী: { ইউনিক কোড: { uri, ratio, at } }
+// "creating all card" স্ক্রিন এই তালিকা থেকে কার্ড দেখায়, তাই গ্যালারিতে সেভ না করলেও কার্ড সেখানে দেখা যায়
+const CARD_CACHE_KEY = 'card_image_cache';
+
 // গ্যালারিতে সেভ হওয়া কার্ড ছবির প্রস্থ (পিক্সেলে): ৩৮৪০ = 4K (UHD)
 const EXPORT_WIDTH_PX = 3840;
 
@@ -37,6 +41,18 @@ const readAllRecords = async () => {
   } catch (error) {
     console.error('Storage read error:', error);
     return [];
+  }
+};
+
+// কার্ডের ছবির ক্যাশ-ঠিকানা তালিকায় জমা রাখা (ছবির ফাইল নিজে ক্যাশ ফোল্ডারে থাকে, এখানে শুধু তার ঠিকানা)
+const saveCardCache = async (code, entry) => {
+  try {
+    const raw = await AsyncStorage.getItem(CARD_CACHE_KEY);
+    const map = raw ? JSON.parse(raw) : {};
+    map[String(code)] = entry;
+    await AsyncStorage.setItem(CARD_CACHE_KEY, JSON.stringify(map));
+  } catch (error) {
+    console.warn('Card cache save error:', error);
   }
 };
 
@@ -124,7 +140,8 @@ const makeCardStyles = (s, hiRes) =>
     backingLayer: { zIndex: 1 },
     logoLayer: { zIndex: 2 },
     cardBgCircle: { height: '100%', aspectRatio: 1, borderRadius: 100000, backgroundColor: '#ffffff' },
-    cardBgImage: { width: '80%', height: '100%', opacity: 0.5 },
+    // মাঝের ছবির স্বচ্ছতা: আগে ০.৫ ছিল, এখন এক-তৃতীয়াংশ কমিয়ে ০.৩৩ (আরও অস্পষ্ট)। আরও কমাতে সংখ্যাটি ছোট করুন
+    cardBgImage: { width: '80%', height: '100%', opacity: 0.33 },
     govLogo: { position: 'absolute', top: 3 * s, left: 3 * s, width: 24 * s, height: 24 * s, zIndex: 4 },
     cardLeftSection: { width: '30%', alignItems: 'center', borderRightWidth: 1 * s, borderRightColor: '#eee', paddingRight: 6 * s },
     // ছবির চারপাশে ধোঁয়াশা (ফেদার) ইফেক্টের জন্য ছবির মোড়ক ও ছবি
@@ -156,6 +173,9 @@ export default function CardScreen({ cardData, onBack }) {
   const [isSaving, setIsSaving] = useState(false);
   // স্ক্রিনে দেখানো কার্ডের প্রস্থ (dp) — এখান থেকেই 4K এর স্কেল বের হয়
   const [cardWidth, setCardWidth] = useState(0);
+  const [cardHeight, setCardHeight] = useState(0);
+  // কার্ডের ছবি একবারই স্বয়ংক্রিয়ভাবে ক্যাশে রাখার জন্য
+  const cacheDoneRef = useRef(false);
   // কার্ড তৈরির তারিখ: প্রথমবার খোলার সময় অটোমেটিক বসে, পরে একই তারিখ থাকে
   const [createdAt, setCreatedAt] = useState(null);
 
@@ -256,6 +276,32 @@ export default function CardScreen({ cardData, onBack }) {
     });
   };
 
+  // কার্ড তৈরি হয়ে স্ক্রিনে এলে নিজে নিজে কার্ডের ছবি তুলে ক্যাশ মেমোরিতে রাখা (গ্যালারিতে সেভ করা লাগে না)
+  // এই ছবিই "creating all card" স্ক্রিনে দেখানো হয়
+  useEffect(() => {
+    if (cacheDoneRef.current) return;
+    if (!uniqueCode || !createdAt || !hiResStyles || !cardWidth || !cardHeight) return;
+    cacheDoneRef.current = true;
+
+    const run = async () => {
+      try {
+        // কার্ডের ছবি, লোগো ও কিউআর পুরোপুরি আঁকা হওয়ার জন্য অপেক্ষা
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        if (!isMountedRef.current) {
+          cacheDoneRef.current = false;
+          return;
+        }
+        const uri = await captureHighRes();
+        await saveCardCache(uniqueCode, { uri, ratio: cardWidth / cardHeight, at: Date.now() });
+      } catch (error) {
+        // ব্যর্থ হলে (যেমন তার আগেই স্ক্রিন বন্ধ) পরেরবার খুললে আবার চেষ্টা হবে
+        cacheDoneRef.current = false;
+        console.warn('Card cache capture failed:', error);
+      }
+    };
+    run();
+  }, [uniqueCode, createdAt, hiResStyles, cardWidth, cardHeight]);
+
   const saveCardToGallery = async () => {
     if (isSaving) return;
 
@@ -279,6 +325,11 @@ export default function CardScreen({ cardData, onBack }) {
       }
 
       const savedUri = await GalleryModule.saveImageToGallery(uri);
+
+      // এইমাত্র তোলা পুরোপুরি আঁকা কার্ডের ছবি ক্যাশেও হালনাগাদ করা
+      if (cardWidth && cardHeight) {
+        saveCardCache(uniqueCode, { uri, ratio: cardWidth / cardHeight, at: Date.now() });
+      }
 
       if (savedUri) {
         Alert.alert('সফল!', 'স্মার্ট কার্ডটি সফলভাবে আপনার গ্যালারিতে সংরক্ষিত হয়েছে!');
@@ -451,8 +502,9 @@ export default function CardScreen({ cardData, onBack }) {
           width: null,
           innerRef: cardRef,
           onLayout: (e) => {
-            const w = e.nativeEvent.layout.width;
+            const { width: w, height: h } = e.nativeEvent.layout;
             if (w > 0 && Math.abs(w - cardWidth) > 0.5) setCardWidth(w);
+            if (h > 0 && Math.abs(h - cardHeight) > 0.5) setCardHeight(h);
           },
         })}
 
