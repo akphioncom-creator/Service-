@@ -1,11 +1,44 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Image, Alert, ScrollView, NativeModules, PixelRatio, useWindowDimensions } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Image, Alert, ScrollView, NativeModules, PixelRatio, useWindowDimensions, Platform, PermissionsAndroid, ToastAndroid, BackHandler } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { captureRef } from 'react-native-view-shot';
 import Svg, { Path, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const { GalleryModule } = NativeModules;
+const { GalleryModule, SaveNotification } = NativeModules;
+
+// সেভ নোটিফিকেশনের সহায়ক ফাংশন: নোটিফিকেশনে কোনো সমস্যা হলে অ্যাপ বা সেভ থামবে না
+const notifyApi = {
+  // নোটিফিকেশন সত্যিই দেখানো গেলে true, না গেলে false
+  start: async (id, title, text, percent) => {
+    try {
+      if (!SaveNotification) return false;
+      return !!(await SaveNotification.start(id, title, text, percent));
+    } catch (e) {
+      return false;
+    }
+  },
+  update: (id, text, percent) => {
+    try { SaveNotification && SaveNotification.update(id, text, percent); } catch (e) {}
+  },
+  complete: (id, title, text, uri) => {
+    try { SaveNotification && SaveNotification.complete(id, title, text, uri || null); } catch (e) {}
+  },
+  fail: (id, title, text) => {
+    try { SaveNotification && SaveNotification.fail(id, title, text); } catch (e) {}
+  },
+};
+
+// Android 13+ এ নোটিফিকেশন দেখাতে অনুমতি লাগে; না দিলেও সেভ চলবে (তখন আগের মতো অ্যালার্ট দেখাবে)
+const requestNotificationPermission = async () => {
+  if (Platform.OS !== 'android' || Platform.Version < 33) return;
+  try {
+    const perm = PermissionsAndroid.PERMISSIONS && PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS;
+    if (!perm) return;
+    const granted = await PermissionsAndroid.check(perm);
+    if (!granted) await PermissionsAndroid.request(perm);
+  } catch (e) {}
+};
 
 // পারসন লিস্ট ফাইলের সাথে একই স্টোরেজ কী (key) ব্যবহার করা হয়েছে
 const STORAGE_KEY = 'persistent_numbers_data';
@@ -171,6 +204,9 @@ export default function CardScreen({ cardData, onBack }) {
   const hiResCardRef = useRef();
   const initDoneRef = useRef(false);
   const isMountedRef = useRef(true);
+  // কার্ডের ছবি তোলার ধাপ চলছে কিনা (এই ধাপে স্ক্রিন খোলা থাকতে হয়) এবং এর মাঝে ফিরে যান চাপা হয়েছে কিনা
+  const captureBusyRef = useRef(false);
+  const pendingBackRef = useRef(false);
 
   // স্টোরেজ থেকে পড়া অ্যাসিঙ্ক্রোনাস, তাই কোড তৈরি হওয়ার আগ পর্যন্ত এটি null থাকবে
   const [uniqueCode, setUniqueCode] = useState(null);
@@ -200,6 +236,31 @@ export default function CardScreen({ cardData, onBack }) {
       isMountedRef.current = false;
     };
   }, []);
+
+  // ফিরে যান: ছবি তোলার ধাপ চলতে থাকলে সেটি শেষ হওয়া পর্যন্ত অপেক্ষা করে তারপর ফিরবে।
+  // ছবি তোলা শেষ হলে বাকি কাজ (গ্যালারিতে সেভ ও নোটিফিকেশন) স্ক্রিন ছাড়াই ব্যাকগ্রাউন্ডে চলতে থাকে
+  const handleBack = () => {
+    if (captureBusyRef.current) {
+      pendingBackRef.current = true;
+      if (Platform.OS === 'android') {
+        ToastAndroid.show('কার্ডের ছবি তৈরি হচ্ছে, শেষ হলেই ফিরে যাবে...', ToastAndroid.SHORT);
+      }
+      return;
+    }
+    if (onBack) onBack();
+  };
+
+  // মোবাইলের ব্যাক বাটনেও একই নিয়ম: ছবি তোলার সময় আটকে রাখবে, নইলে স্বাভাবিকভাবে ফিরবে
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (captureBusyRef.current) {
+        handleBack();
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, [onBack]);
 
   // কার্ড খোলার সময় একবারই কোড নির্ধারণ হবে এবং কার্ডের সকল তথ্য + ইউনিক কোড পারসন লিস্টের স্টোরেজে সংরক্ষণ হবে
   useEffect(() => {
@@ -319,7 +380,34 @@ export default function CardScreen({ cardData, onBack }) {
     }
 
     setIsSaving(true);
+    captureBusyRef.current = true;
+
+    // ছবি তোলা শেষ (বা ব্যর্থ) হলে ডাকা হয়: এরপর স্ক্রিন বন্ধ হলেও সেভের বাকি কাজ চলবে।
+    // এর মাঝে ফিরে যান চাপা হয়ে থাকলে এখন ফেরা হবে
+    const releaseCapture = () => {
+      captureBusyRef.current = false;
+      if (pendingBackRef.current) {
+        pendingBackRef.current = false;
+        if (onBack) onBack();
+      }
+    };
+
+    // প্রতিটি সেভের জন্য আলাদা নোটিফিকেশন আইডি (Int এর সীমার ভেতরে)
+    const notifId = Math.floor(Date.now() % 1000000000);
+    const notifTitle = 'স্মার্ট কার্ড সেভ হচ্ছে';
+    let notified = false;
+
     try {
+      await requestNotificationPermission();
+
+      // নোটিফিকেশনে ০% দিয়ে শুরু; দেখানো না গেলে notified = false থাকবে এবং শেষে আগের মতো অ্যালার্ট আসবে
+      notified = await notifyApi.start(notifId, notifTitle, 'শুরু হচ্ছে...', 0);
+      if (notified && Platform.OS === 'android') {
+        ToastAndroid.show('সেভ শুরু হয়েছে, নোটিফিকেশনে দেখুন', ToastAndroid.SHORT);
+      }
+
+      notifyApi.update(notifId, 'কার্ডের ছবি তৈরি হচ্ছে...', 10);
+
       let uri;
       try {
         uri = await captureHighRes();
@@ -334,19 +422,40 @@ export default function CardScreen({ cardData, onBack }) {
         });
       }
 
+      // ছবি তৈরি হয়ে গেছে, এখন স্ক্রিনের আর দরকার নেই
+      releaseCapture();
+
+      notifyApi.update(notifId, 'গ্যালারিতে সংরক্ষণ হচ্ছে...', 70);
+
       const savedUri = await GalleryModule.saveImageToGallery(uri);
 
       // এইমাত্র তোলা পুরোপুরি আঁকা কার্ডের ছবি ক্যাশেও হালনাগাদ করা
       saveCardCache(uniqueCode, { uri, ratio: CARD_ASPECT, at: Date.now() });
 
       if (savedUri) {
-        Alert.alert('সফল!', 'স্মার্ট কার্ডটি সফলভাবে আপনার গ্যালারিতে সংরক্ষিত হয়েছে!');
+        if (notified) {
+          notifyApi.complete(
+            notifId,
+            'সেভ সম্পন্ন',
+            'স্মার্ট কার্ডটি গ্যালারিতে সংরক্ষিত হয়েছে। দেখতে চাপ দিন।',
+            typeof savedUri === 'string' ? savedUri : null
+          );
+        } else {
+          Alert.alert('সফল!', 'স্মার্ট কার্ডটি সফলভাবে আপনার গ্যালারিতে সংরক্ষিত হয়েছে!');
+        }
+      } else if (notified) {
+        notifyApi.fail(notifId, 'সেভ ব্যর্থ হয়েছে', 'কার্ডটি গ্যালারিতে সেভ করা সম্ভব হয়নি।');
       } else {
         Alert.alert('ত্রুটি', 'কার্ডটি গ্যালারিতে সেভ করা সম্ভব হয়নি।');
       }
     } catch (error) {
       console.error('Save error:', error);
-      Alert.alert('ত্রুটি', 'কার্ডটি সেভ করার সময় একটি সমস্যা হয়েছে।');
+      releaseCapture();
+      if (notified) {
+        notifyApi.fail(notifId, 'সেভ ব্যর্থ হয়েছে', 'কার্ডটি সেভ করার সময় একটি সমস্যা হয়েছে।');
+      } else {
+        Alert.alert('ত্রুটি', 'কার্ডটি সেভ করার সময় একটি সমস্যা হয়েছে।');
+      }
     } finally {
       if (isMountedRef.current) setIsSaving(false);
     }
@@ -497,7 +606,7 @@ export default function CardScreen({ cardData, onBack }) {
       <ScrollView contentContainerStyle={styles.container}>
         {/* হেডার উইথ ব্যাক আইকন (back_icon.xml) */}
         <View style={styles.headerRow}>
-          <TouchableOpacity style={styles.topBackBtn} onPress={onBack}>
+          <TouchableOpacity style={styles.topBackBtn} onPress={handleBack}>
             <Image source={{ uri: 'back_icon' }} style={styles.headerIconStyle} />
           </TouchableOpacity>
           <Text style={styles.mainTitle}>Digital Smart ID Card</Text>
@@ -526,7 +635,7 @@ export default function CardScreen({ cardData, onBack }) {
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.btn, styles.backBtn]} onPress={onBack}>
+        <TouchableOpacity style={[styles.btn, styles.backBtn]} onPress={handleBack}>
           <Text style={styles.btnText}>ফিরে যান</Text>
         </TouchableOpacity>
       </ScrollView>
