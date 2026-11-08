@@ -24,6 +24,7 @@ class MainApplication : Application(), ReactApplication {
           // কাস্টম প্যাকেজগুলো এখানে সফলভাবে যুক্ত করা হলো
           add(SafeAreaPackage())
           add(GalleryPackage())
+          add(SaveNotificationPackage())
         }
     )
   }
