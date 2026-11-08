@@ -1,6 +1,4 @@
-// ⚠️ প্রথম লাইনের package: আপনার GalleryModule যে package-এ আছে, হুবহু সেটাই লিখুন।
-// (GalleryModule.kt/.java ফাইলটি খুলে তার প্রথম লাইনের package কপি করে এখানে বসান)
-package com.yourapp
+package com.smartservice.app
 
 import android.annotation.SuppressLint
 import android.app.Notification
