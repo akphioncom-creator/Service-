@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Image, Alert, ScrollView, NativeModules, PixelRatio } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Image, Alert, ScrollView, NativeModules, PixelRatio, useWindowDimensions } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { captureRef } from 'react-native-view-shot';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -14,8 +14,13 @@ const STORAGE_KEY = 'persistent_numbers_data';
 // "creating all card" স্ক্রিন এই তালিকা থেকে কার্ড দেখায়, তাই গ্যালারিতে সেভ না করলেও কার্ড সেখানে দেখা যায়
 const CARD_CACHE_KEY = 'card_image_cache';
 
-// গ্যালারিতে সেভ হওয়া কার্ড ছবির প্রস্থ (পিক্সেলে): ৩৮৪০ = 4K (UHD)
+// কার্ডের ছবির নির্দিষ্ট মাপ (পিক্সেলে): সব ফোনে, সব সময় হুবহু ৩৮৪০ × ২৫৬৭ পিক্সেল
 const EXPORT_WIDTH_PX = 3840;
+const EXPORT_HEIGHT_PX = 2567;
+const CARD_ASPECT = EXPORT_WIDTH_PX / EXPORT_HEIGHT_PX; // প্রস্থ ÷ উচ্চতা (≈ ১.৪৯৬)
+
+// কার্ডের ডিজাইন যে প্রস্থে (dp) আঁকা হয়েছে; সব মাপ এর অনুপাতে বাড়ে-কমে, তাই যেকোনো ফোনে কার্ড একই দেখায়
+const DESIGN_WIDTH_DP = 330;
 
 // ইংরেজি সংখ্যাকে বাংলা সংখ্যায় রূপান্তর (বয়স দেখানোর জন্য)
 const toBengaliDigits = (value) =>
@@ -134,7 +139,7 @@ const makeHalo = (s) => ({
 const makeCardStyles = (s, hiRes) =>
   StyleSheet.create({
     /* প্রফেশনাল আইডি কার্ড প্রিভিউ স্টাইল ও গ্রাফিক ডিজাইন ব্যাকগ্রাউন্ড */
-    cardContainer: { width: '100%', backgroundColor: '#ffffff', borderWidth: 1.5 * s, borderColor: '#1A365D', borderRadius: 10 * s, padding: 14 * s, marginTop: 10 * s, marginBottom: 20 * s, elevation: hiRes ? 0 : 5, position: 'relative', overflow: 'hidden' },
+    cardContainer: { width: '100%', justifyContent: 'center', backgroundColor: '#ffffff', borderWidth: 1.5 * s, borderColor: '#1A365D', borderRadius: 10 * s, padding: 14 * s, marginTop: 10 * s, marginBottom: 20 * s, elevation: hiRes ? 0 : 5, position: 'relative', overflow: 'hidden' },
     watermarkContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 0 },
     cardBody: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 3 },
     backingLayer: { zIndex: 1 },
@@ -172,22 +177,22 @@ export default function CardScreen({ cardData, onBack }) {
   // সেভ চলাকালীন বারবার চাপ দেওয়া ঠেকানোর জন্য
   const [isSaving, setIsSaving] = useState(false);
   // স্ক্রিনে দেখানো কার্ডের প্রস্থ (dp) — এখান থেকেই 4K এর স্কেল বের হয়
-  const [cardWidth, setCardWidth] = useState(0);
-  const [cardHeight, setCardHeight] = useState(0);
   // কার্ডের ছবি একবারই স্বয়ংক্রিয়ভাবে ক্যাশে রাখার জন্য
   const cacheDoneRef = useRef(false);
   // কার্ড তৈরির তারিখ: প্রথমবার খোলার সময় অটোমেটিক বসে, পরে একই তারিখ থাকে
   const [createdAt, setCreatedAt] = useState(null);
 
-  // স্ক্রিনে দেখানো কার্ডের স্টাইল (স্কেল ১)
-  const cardStyles = useMemo(() => makeCardStyles(1, false), []);
+  // স্ক্রিনে দেখানো কার্ডের মাপ: প্রস্থ স্ক্রিন অনুযায়ী, উচ্চতা সবসময় নির্দিষ্ট অনুপাতে (৩৮৪০:২৫৬৭)
+  const { width: winWidth } = useWindowDimensions();
+  const screenCardWidth = Math.min(Math.max(winWidth - 30, 200), 600); // ৩০ = দুই পাশের ১৫+১৫ ফাঁকা জায়গা
+  const screenCardHeight = screenCardWidth / CARD_ASPECT;
+  const screenScale = screenCardWidth / DESIGN_WIDTH_DP;
+  const cardStyles = useMemo(() => makeCardStyles(screenScale, false), [screenScale]);
 
-  // 4K কার্ডের স্কেল: (৩৮৪০ পিক্সেল) ÷ (কার্ডের প্রস্থ × স্ক্রিনের ডেনসিটি)
-  const exportScale = cardWidth > 0 ? EXPORT_WIDTH_PX / (cardWidth * PixelRatio.get()) : 0;
-  const hiResStyles = useMemo(
-    () => (exportScale > 0 ? makeCardStyles(exportScale, true) : null),
-    [exportScale]
-  );
+  // ছবির (সেভ করার) কার্ডের স্কেল: স্ক্রিনের মাপের উপর নির্ভর করে না, তাই সব ফোনে একই ছবি তৈরি হয়
+  // কার্ডের প্রস্থ = ৩৮৪০ পিক্সেল, উচ্চতা = ২৫৬৭ পিক্সেল (dp তে প্রকাশ করতে ডেনসিটি দিয়ে ভাগ)
+  const exportScale = EXPORT_WIDTH_PX / PixelRatio.get() / DESIGN_WIDTH_DP;
+  const hiResStyles = useMemo(() => makeCardStyles(exportScale, true), [exportScale]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -270,9 +275,12 @@ export default function CardScreen({ cardData, onBack }) {
     }
     // বড় কার্ডের লেআউট ও ছবি পুরোপুরি আঁকা হওয়ার জন্য অল্প অপেক্ষা
     await new Promise((resolve) => setTimeout(resolve, 250));
+    // width/height দিয়ে ছবির মাপ হুবহু ৩৮৪০ × ২৫৬৭ পিক্সেলে বেঁধে দেওয়া হয়
     return captureRef(hiResCardRef, {
       format: 'png',
       quality: 1.0,
+      width: EXPORT_WIDTH_PX,
+      height: EXPORT_HEIGHT_PX,
     });
   };
 
@@ -280,7 +288,7 @@ export default function CardScreen({ cardData, onBack }) {
   // এই ছবিই "creating all card" স্ক্রিনে দেখানো হয়
   useEffect(() => {
     if (cacheDoneRef.current) return;
-    if (!uniqueCode || !createdAt || !hiResStyles || !cardWidth || !cardHeight) return;
+    if (!uniqueCode || !createdAt) return;
     cacheDoneRef.current = true;
 
     const run = async () => {
@@ -292,7 +300,7 @@ export default function CardScreen({ cardData, onBack }) {
           return;
         }
         const uri = await captureHighRes();
-        await saveCardCache(uniqueCode, { uri, ratio: cardWidth / cardHeight, at: Date.now() });
+        await saveCardCache(uniqueCode, { uri, ratio: CARD_ASPECT, at: Date.now() });
       } catch (error) {
         // ব্যর্থ হলে (যেমন তার আগেই স্ক্রিন বন্ধ) পরেরবার খুললে আবার চেষ্টা হবে
         cacheDoneRef.current = false;
@@ -300,7 +308,7 @@ export default function CardScreen({ cardData, onBack }) {
       }
     };
     run();
-  }, [uniqueCode, createdAt, hiResStyles, cardWidth, cardHeight]);
+  }, [uniqueCode, createdAt]);
 
   const saveCardToGallery = async () => {
     if (isSaving) return;
@@ -321,15 +329,15 @@ export default function CardScreen({ cardData, onBack }) {
         uri = await captureRef(cardRef, {
           format: 'png',
           quality: 1.0,
+          width: EXPORT_WIDTH_PX,
+          height: EXPORT_HEIGHT_PX,
         });
       }
 
       const savedUri = await GalleryModule.saveImageToGallery(uri);
 
       // এইমাত্র তোলা পুরোপুরি আঁকা কার্ডের ছবি ক্যাশেও হালনাগাদ করা
-      if (cardWidth && cardHeight) {
-        saveCardCache(uniqueCode, { uri, ratio: cardWidth / cardHeight, at: Date.now() });
-      }
+      saveCardCache(uniqueCode, { uri, ratio: CARD_ASPECT, at: Date.now() });
 
       if (savedUri) {
         Alert.alert('সফল!', 'স্মার্ট কার্ডটি সফলভাবে আপনার গ্যালারিতে সংরক্ষিত হয়েছে!');
@@ -378,12 +386,11 @@ export default function CardScreen({ cardData, onBack }) {
 
   // কার্ডের পুরো ডিজাইন একটি ফাংশনে রাখা হয়েছে, যাতে স্ক্রিনের কার্ড এবং 4K কার্ড দুটোই হুবহু একই ডিজাইনে তৈরি হয়
   // s = স্কেল, cs = সেই স্কেলের স্টাইল, width = (শুধু 4K কার্ডের জন্য) নির্দিষ্ট প্রস্থ
-  const renderCard = ({ s, cs, width, innerRef, onLayout }) => (
+  const renderCard = ({ s, cs, width, height, innerRef }) => (
     <View
       ref={innerRef}
       collapsable={false}
-      onLayout={onLayout}
-      style={[cs.cardContainer, width ? { width } : null]}
+      style={[cs.cardContainer, { width, height }]}
     >
 
       {/* ব্যাকগ্রাউন্ডে স্পষ্ট কালো ও ছাইরঙা (Black & White/Gray) সিকিউরিটি গ্রাফিক ডিজাইন */}
@@ -439,14 +446,14 @@ export default function CardScreen({ cardData, onBack }) {
             {renderPhotoHaze(s)}
           </View>
           {/* গ্রামের জায়গায় ইউনিয়ন/পৌরসভার নাম (আগের কার্ডে areaName না থাকলে পুরোনো village দেখাবে) */}
-          <Text style={cs.cardAddressText}>
+          <Text allowFontScaling={false} style={cs.cardAddressText}>
             {cardData.areaType === 'পৌরসভা' ? 'পৌরসভা' : 'ইউনিয়ন'}: {cardData.areaName || cardData.village}
           </Text>
-          <Text style={cs.cardAddressText}>ওয়ার্ড নং: {cardData.ward}</Text>
-          <Text style={cs.cardAddressText}>থানা: {cardData.upazila}</Text>
-          <Text style={cs.cardAddressText}>জেলা: {cardData.district}</Text>
+          <Text allowFontScaling={false} style={cs.cardAddressText}>ওয়ার্ড নং: {cardData.ward}</Text>
+          <Text allowFontScaling={false} style={cs.cardAddressText}>থানা: {cardData.upazila}</Text>
+          <Text allowFontScaling={false} style={cs.cardAddressText}>জেলা: {cardData.district}</Text>
           {cardData.socialStatus ? (
-            <Text style={cs.cardStatusText}>{cardData.socialStatus}</Text>
+            <Text allowFontScaling={false} style={cs.cardStatusText}>{cardData.socialStatus}</Text>
           ) : null}
         </View>
 
@@ -455,13 +462,14 @@ export default function CardScreen({ cardData, onBack }) {
           {middleFields.map(([label, value]) => (
             <Text
               key={label}
+              allowFontScaling={false}
               style={cs.fieldLine}
               numberOfLines={1}
               adjustsFontSizeToFit
               minimumFontScale={0.6}
             >
-              <Text style={cs.fieldLabel}>{label}: </Text>
-              <Text style={cs.fieldValue}>{value}</Text>
+              <Text allowFontScaling={false} style={cs.fieldLabel}>{label}: </Text>
+              <Text allowFontScaling={false} style={cs.fieldValue}>{value}</Text>
             </Text>
           ))}
         </View>
@@ -470,13 +478,13 @@ export default function CardScreen({ cardData, onBack }) {
         <View style={cs.cardRightSection}>
           {uniqueCode ? (
             <>
-              <Text style={cs.createdDateText}>{'কার্ড তৈরির তারিখ:\n'}{formatCreatedDate(createdAt)}</Text>
+              <Text allowFontScaling={false} style={cs.createdDateText}>{'কার্ড তৈরির তারিখ:\n'}{formatCreatedDate(createdAt)}</Text>
               <QRCode value={uniqueCode} size={84 * s} />
-              <Text style={cs.qrCodeText}>{uniqueCode}</Text>
+              <Text allowFontScaling={false} style={cs.qrCodeText}>{uniqueCode}</Text>
             </>
           ) : (
             <View style={cs.qrPlaceholder}>
-              <Text style={cs.qrPlaceholderText}>...</Text>
+              <Text allowFontScaling={false} style={cs.qrPlaceholderText}>...</Text>
             </View>
           )}
         </View>
@@ -497,15 +505,11 @@ export default function CardScreen({ cardData, onBack }) {
 
         {/* স্ক্রিনে দেখানো মূল কার্ড ভিউ (4K সেভ ব্যর্থ হলে এটিই ক্যাপচার হবে) */}
         {renderCard({
-          s: 1,
+          s: screenScale,
           cs: cardStyles,
-          width: null,
+          width: screenCardWidth,
+          height: screenCardHeight,
           innerRef: cardRef,
-          onLayout: (e) => {
-            const { width: w, height: h } = e.nativeEvent.layout;
-            if (w > 0 && Math.abs(w - cardWidth) > 0.5) setCardWidth(w);
-            if (h > 0 && Math.abs(h - cardHeight) > 0.5) setCardHeight(h);
-          },
         })}
 
         {/* গ্যালারিতে সেভ করার বাটন (downloadicon.xml সহ) */}
@@ -528,21 +532,19 @@ export default function CardScreen({ cardData, onBack }) {
       </ScrollView>
 
       {/* 4K সেভের জন্য স্ক্রিনের বাইরে রাখা অদৃশ্য বড় কার্ড (একই ডিজাইন, শুধু বড় মাপে) */}
-      {hiResStyles ? (
-        <View
-          style={styles.offscreen}
-          pointerEvents="none"
-          importantForAccessibility="no-hide-descendants"
-        >
-          {renderCard({
-            s: exportScale,
-            cs: hiResStyles,
-            width: cardWidth * exportScale,
-            innerRef: hiResCardRef,
-            onLayout: undefined,
-          })}
-        </View>
-      ) : null}
+      <View
+        style={styles.offscreen}
+        pointerEvents="none"
+        importantForAccessibility="no-hide-descendants"
+      >
+        {renderCard({
+          s: exportScale,
+          cs: hiResStyles,
+          width: EXPORT_WIDTH_PX / PixelRatio.get(),
+          height: EXPORT_HEIGHT_PX / PixelRatio.get(),
+          innerRef: hiResCardRef,
+        })}
+      </View>
     </View>
   );
 }
