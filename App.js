@@ -326,6 +326,8 @@ export default function App() {
             onOpenPasswordChange={() => setCurrentScreen('passwordchange')}
             // লক অপশন বদলানোর পাতায় ঢুকতে সবসময় পাসওয়ার্ড লাগে, নইলে সেটিং-এর ফিঙ্গারপ্রিন্ট বন্ধ করে যে কেউ সব লক খুলে ফেলতে পারত
             onOpenLockOption={() => requirePassword(() => setCurrentScreen('lockoption'))}
+            // লগআউট এখন সেটিং পাতা থেকে হয় (নিশ্চিত করে টোকেন মুছে লগইন স্ক্রিনে ফেরার কাজ handleLogout-ই করে)
+            onLogout={handleLogout}
           />
         );
       case 'lockoption':
@@ -442,13 +444,6 @@ export default function App() {
           )}
           <Text style={[styles.barTitle, styles.lightText]}>Smart Service</Text>
         </TouchableOpacity>
-
-        {/* হোম স্ক্রিনে ডানদিকে লগআউট বাটন */}
-        {currentScreen === 'home' && (
-          <TouchableOpacity onPress={handleLogout} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={styles.logoutText}>লগআউট</Text>
-          </TouchableOpacity>
-        )}
       </View>
 
       {/* ডায়নামিক স্ক্রিন রেন্ডারিং */}
@@ -544,11 +539,6 @@ const styles = StyleSheet.create({
   barTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-  },
-  logoutText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#dc3545',
   },
   headerBackIcon: {
     width: 20,
