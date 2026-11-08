@@ -73,6 +73,8 @@ export default function PersonListScreen({ onBack }) {
   // পেশা ও সামাজিক অবস্থার ফিল্টার: null = সব। দুটি একসাথে দিলে দুটোই মিলতে হবে (যেমন কৃষক + Poor)
   const [occupationFilter, setOccupationFilter] = useState(null);
   const [statusFilter, setStatusFilter] = useState(null);
+  // পেশা ও অবস্থার দুটি সারি ডিফল্টে লুকানো থাকে; প্রথম সারির শেষের ^ চিহ্নে চাপলে দেখায়
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -349,8 +351,20 @@ export default function PersonListScreen({ onBack }) {
             Not Scanned
           </Text>
         </TouchableOpacity>
+
+        {/* ^ চিহ্ন: চাপলে নিচের দুই সারি (পেশা ও অবস্থা) দেখায়/লুকায়; লুকানো অবস্থায় ফিল্টার চালু থাকলে ছোট বিন্দু দেখায় */}
+        <TouchableOpacity
+          style={styles.moreToggle}
+          onPress={() => setShowMoreFilters((prev) => !prev)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <View style={[styles.chevron, showMoreFilters ? styles.chevronDown : styles.chevronUp]} />
+          {!showMoreFilters && (occupationFilter || statusFilter) ? <View style={styles.moreDot} /> : null}
+        </TouchableOpacity>
       </View>
 
+      {showMoreFilters ? (
+      <>
       {/* পেশা বাছাই: সার্চ নয়, সিলেক্ট করে আলাদা করা হয় (চালু বাটনে আবার চাপলে All) */}
       <View style={styles.optGroup}>
         <Text style={styles.optLabel}>পেশা</Text>
@@ -382,6 +396,8 @@ export default function PersonListScreen({ onBack }) {
           ))}
         </ScrollView>
       </View>
+      </>
+      ) : null}
 
       <Text style={styles.title}>All Person List ({isFiltering ? visibleItems.length : total})</Text>
 
@@ -504,6 +520,11 @@ const styles = StyleSheet.create({
   chipTextScanned: { color: '#dc3545' },
   chipTextNotScanned: { color: '#28a745' },
   chipTextActive: { color: '#fff' },
+  moreToggle: { marginLeft: 'auto', width: 34, height: 28, justifyContent: 'center', alignItems: 'center' },
+  chevron: { width: 10, height: 10, borderRightWidth: 2, borderBottomWidth: 2, borderColor: '#1A365D' },
+  chevronUp: { transform: [{ rotate: '-135deg' }], marginTop: 4 },
+  chevronDown: { transform: [{ rotate: '45deg' }], marginBottom: 4 },
+  moreDot: { position: 'absolute', top: 2, right: 6, width: 8, height: 8, borderRadius: 4, backgroundColor: '#dc3545' },
   optGroup: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
   optLabel: { width: 44, fontSize: 11, color: '#6c757d' },
   optChip: { paddingVertical: 3, paddingHorizontal: 11, borderRadius: 14, borderWidth: 1, borderColor: '#1A365D', backgroundColor: '#fff', marginRight: 6 },
