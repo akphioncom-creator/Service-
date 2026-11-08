@@ -1,6 +1,4 @@
-// ⚠️ প্রথম লাইনের package: SaveNotificationModule.kt এবং GalleryModule যে package-এ আছে, হুবহু সেটাই লিখুন।
-package com.yourapp
-
+package com.smartservice.app
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule
 import com.facebook.react.bridge.ReactApplicationContext
