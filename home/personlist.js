@@ -36,6 +36,8 @@ const formatDateTime = (iso) => {
 export default function PersonListScreen({ onBack }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  // স্ক্যান ফিল্টার: null = সব, 'scanned' = শুধু স্ক্যান হয়েছে, 'notScanned' = শুধু স্ক্যান হয়নি
+  const [scanFilter, setScanFilter] = useState(null);
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -111,12 +113,33 @@ export default function PersonListScreen({ onBack }) {
     else setDebouncedQuery(q);
   };
 
-  // শুধু এনআইডি দিয়ে সার্চ: সার্ভার নাম/মোবাইল/কিউআর কোডেও মিলিয়ে ফেলতে পারে (যেমন "7273" কিউআর কোডের সাথে মিলে যায়),
-  // তাই ফলাফল থেকে শুধু যাদের এনআইডিতে সংখ্যাটি আছে তাদেরই দেখানো হয়
+  // তালিকায় যা দেখানো হবে:
+  // ১) শুধু এনআইডি দিয়ে সার্চ: সার্ভার নাম/মোবাইল/কিউআর কোডেও মিলিয়ে ফেলতে পারে (যেমন "7273" কিউআর কোডের সাথে মিলে যায়),
+  //    তাই ফলাফল থেকে শুধু যাদের এনআইডিতে সংখ্যাটি আছে তাদেরই দেখানো হয়
+  // ২) স্ক্যান ফিল্টার: scannedAt থাকলে স্ক্যান হয়েছে, না থাকলে স্ক্যান হয়নি
   const visibleItems = useMemo(() => {
-    if (!debouncedQuery) return items;
-    return items.filter((it) => safeText(it.nid).includes(debouncedQuery));
-  }, [items, debouncedQuery]);
+    let list = items;
+    if (debouncedQuery) {
+      list = list.filter((it) => safeText(it.nid).includes(debouncedQuery));
+    }
+    if (scanFilter === 'scanned') {
+      list = list.filter((it) => !!it.scannedAt);
+    } else if (scanFilter === 'notScanned') {
+      list = list.filter((it) => !it.scannedAt);
+    }
+    return list;
+  }, [items, debouncedQuery, scanFilter]);
+
+  const isFiltering = !!debouncedQuery || !!scanFilter;
+
+  // ফিল্টার চালু থাকলে একটি পাতায় মিলে যাওয়া কার্ড কম হতে পারে, তাই তালিকা ছোট থাকলে বাকি পাতাগুলো নিজে থেকেই আনা হয়
+  useEffect(() => {
+    if (!isFiltering) return;
+    if (loading || loadingMore || refreshing || error) return;
+    if (items.length >= total) return;
+    if (visibleItems.length >= PAGE_SIZE) return;
+    loadPage(page + 1, debouncedQuery, 'more');
+  }, [isFiltering, loading, loadingMore, refreshing, error, items.length, total, visibleItems.length, page, debouncedQuery, loadPage]);
 
   // সার্ভার থেকে নির্দিষ্ট ব্যক্তির তথ্য মুছে ফেলা (সার্ভারে শুধু admin পারে)
   const deleteItem = async (item) => {
@@ -219,7 +242,7 @@ export default function PersonListScreen({ onBack }) {
   };
 
   const renderEmpty = () => {
-    if (loading) {
+    if (loading || loadingMore) {
       return <ActivityIndicator size="large" color="#1A365D" style={styles.centerSpinner} />;
     }
     if (error) return null;
@@ -256,7 +279,28 @@ export default function PersonListScreen({ onBack }) {
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.title}>All Person List ({debouncedQuery ? visibleItems.length : total})</Text>
+      {/* স্ক্যান ফিল্টার: চাপলে চালু, আবার চাপলে বন্ধ (সব দেখাবে) */}
+      <View style={styles.filterRow}>
+        <TouchableOpacity
+          style={[styles.chip, styles.chipScanned, scanFilter === 'scanned' && styles.chipScannedActive]}
+          onPress={() => setScanFilter((prev) => (prev === 'scanned' ? null : 'scanned'))}
+        >
+          <Text style={[styles.chipText, styles.chipTextScanned, scanFilter === 'scanned' && styles.chipTextActive]}>
+            Scanned
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.chip, styles.chipNotScanned, scanFilter === 'notScanned' && styles.chipNotScannedActive]}
+          onPress={() => setScanFilter((prev) => (prev === 'notScanned' ? null : 'notScanned'))}
+        >
+          <Text style={[styles.chipText, styles.chipTextNotScanned, scanFilter === 'notScanned' && styles.chipTextActive]}>
+            Not Scanned
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={styles.title}>All Person List ({isFiltering ? visibleItems.length : total})</Text>
 
       {/* সার্ভার থেকে তথ্য আনতে সমস্যা হলে বার্তা ও আবার চেষ্টার বাটন */}
       {error ? (
@@ -364,6 +408,16 @@ const styles = StyleSheet.create({
   searchRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   input: { flex: 1, height: 34, borderWidth: 1, borderColor: '#ced4da', borderRadius: 6, paddingVertical: 0, paddingHorizontal: 10, backgroundColor: '#fff', fontSize: 13 },
   restartBtn: { width: 34, height: 34, marginLeft: 8, borderRadius: 6, borderWidth: 1, borderColor: '#ced4da', backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center' },
+  filterRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  chip: { paddingVertical: 5, paddingHorizontal: 14, borderRadius: 16, borderWidth: 1.5, marginRight: 8, backgroundColor: '#fff' },
+  chipScanned: { borderColor: '#dc3545' },
+  chipNotScanned: { borderColor: '#28a745' },
+  chipScannedActive: { backgroundColor: '#dc3545' },
+  chipNotScannedActive: { backgroundColor: '#28a745' },
+  chipText: { fontSize: 12, fontWeight: 'bold' },
+  chipTextScanned: { color: '#dc3545' },
+  chipTextNotScanned: { color: '#28a745' },
+  chipTextActive: { color: '#fff' },
   restartIcon: { fontSize: 20, color: '#1A365D', lineHeight: 24 },
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 12, borderRadius: 8, marginBottom: 8, borderWidth: 1, borderColor: '#e9ecef' },
   cardScanned: { backgroundColor: '#fdecea', borderColor: '#dc3545', borderWidth: 1.5 },
