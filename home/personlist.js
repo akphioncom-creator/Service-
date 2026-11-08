@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { StyleSheet, Text, View, TextInput, FlatList, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
 import API from '../apiConfig';
 import {
@@ -14,6 +14,15 @@ const PAGE_SIZE = 30;
 
 // যেকোনো মানকে নিরাপদে স্ট্রিং-এ রূপান্তর (খালি/undefined হলে ক্র্যাশ এড়াতে)
 const safeText = (value) => (value === undefined || value === null ? '' : String(value));
+
+// সার্চ বক্সে শুধু এনআইডি (সংখ্যা) লেখা যাবে: বাংলা সংখ্যা ইংরেজিতে বদলে যায়, সংখ্যা ছাড়া সব অক্ষর বাদ যায়
+// (এনআইডি সর্বোচ্চ ১৭ ডিজিটের হয়)
+const NID_MAX_LENGTH = 17;
+const sanitizeNid = (text) =>
+  String(text || '')
+    .replace(/[০-৯]/g, (d) => '০১২৩৪৫৬৭৮৯'.indexOf(d))
+    .replace(/[^0-9]/g, '')
+    .slice(0, NID_MAX_LENGTH);
 
 // ISO সময়কে পড়ার উপযোগী তারিখ-সময়ে রূপান্তর (দিন/মাস/বছর ঘণ্টা:মিনিট)
 const formatDateTime = (iso) => {
@@ -94,6 +103,20 @@ export default function PersonListScreen({ onBack }) {
     if (items.length >= total) return;
     loadPage(page + 1, debouncedQuery, 'more');
   };
+
+  // কিবোর্ডের সার্চ (🔍) বাটনে চাপ দিলে ০.৪ সেকেন্ড অপেক্ষা না করে সাথে সাথে খোঁজা হবে
+  const handleSubmitSearch = () => {
+    const q = searchQuery.trim();
+    if (q === debouncedQuery) loadPage(1, q, 'initial');
+    else setDebouncedQuery(q);
+  };
+
+  // শুধু এনআইডি দিয়ে সার্চ: সার্ভার নাম/মোবাইল/কিউআর কোডেও মিলিয়ে ফেলতে পারে (যেমন "7273" কিউআর কোডের সাথে মিলে যায়),
+  // তাই ফলাফল থেকে শুধু যাদের এনআইডিতে সংখ্যাটি আছে তাদেরই দেখানো হয়
+  const visibleItems = useMemo(() => {
+    if (!debouncedQuery) return items;
+    return items.filter((it) => safeText(it.nid).includes(debouncedQuery));
+  }, [items, debouncedQuery]);
 
   // সার্ভার থেকে নির্দিষ্ট ব্যক্তির তথ্য মুছে ফেলা (সার্ভারে শুধু admin পারে)
   const deleteItem = async (item) => {
@@ -205,12 +228,20 @@ export default function PersonListScreen({ onBack }) {
 
   return (
     <View style={styles.container}>
+      {/* সার্চ বক্সের উপরে হালকা করে লেখা */}
+      <Text style={styles.searchHint}>শুধুমাত্র এনআইডি নম্বর দিয়ে সার্চ করুন</Text>
       <View style={styles.searchRow}>
         <TextInput
           style={styles.input}
-          placeholder="নাম, নম্বর বা কিউআর কোড দিয়ে সার্চ করুন..."
+          placeholder="এনআইডি নম্বর লিখুন"
+          placeholderTextColor="#adb5bd"
           value={searchQuery}
-          onChangeText={setSearchQuery}
+          onChangeText={(t) => setSearchQuery(sanitizeNid(t))}
+          keyboardType="number-pad"
+          returnKeyType="search"
+          maxLength={NID_MAX_LENGTH}
+          onSubmitEditing={handleSubmitSearch}
+          autoCorrect={false}
         />
 
         {/* রিস্টার্ট বাটন */}
@@ -227,7 +258,7 @@ export default function PersonListScreen({ onBack }) {
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.title}>All Person List ({total})</Text>
+      <Text style={styles.title}>All Person List ({debouncedQuery ? visibleItems.length : total})</Text>
 
       {/* সার্ভার থেকে তথ্য আনতে সমস্যা হলে বার্তা ও আবার চেষ্টার বাটন */}
       {error ? (
@@ -240,7 +271,7 @@ export default function PersonListScreen({ onBack }) {
       ) : null}
 
       <FlatList
-        data={items}
+        data={visibleItems}
         keyExtractor={(item, index) => safeText(item.uniqueCode || item.id) || String(index)}
         refreshing={refreshing}
         onRefresh={() => loadPage(1, debouncedQuery, 'refresh')}
@@ -332,6 +363,7 @@ export default function PersonListScreen({ onBack }) {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: '#f8f9fa', paddingTop: 15 },
   title: { fontSize: 20, fontWeight: 'bold', marginBottom: 15, textAlign: 'center', color: '#333' },
+  searchHint: { fontSize: 12, color: '#9aa0a6', marginBottom: 6, marginLeft: 2 },
   searchRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
   input: { flex: 1, height: 48, borderWidth: 1, borderColor: '#ced4da', borderRadius: 8, paddingHorizontal: 15, backgroundColor: '#fff', fontSize: 16 },
   restartBtn: { width: 48, height: 48, marginLeft: 10, borderRadius: 8, borderWidth: 1, borderColor: '#ced4da', backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center' },
