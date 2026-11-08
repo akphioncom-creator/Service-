@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Alert, ScrollView, Image, NativeModules } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Alert, ScrollView, Image, NativeModules, ActivityIndicator, Platform, PermissionsAndroid, ToastAndroid, BackHandler } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import QRCode from 'react-native-qrcode-svg';
 import { captureRef } from 'react-native-view-shot';
@@ -7,7 +7,46 @@ import { captureRef } from 'react-native-view-shot';
 const STORAGE_KEY = 'smart_cards_data';
 // card.js তৈরি হওয়া কার্ডের ছবি ক্যাশ মেমোরিতে রেখে তার ঠিকানা এই কী-তে জমা করে: { ইউনিক কোড: { uri, ratio, at } }
 const CARD_CACHE_KEY = 'card_image_cache';
-const { GalleryModule } = NativeModules;
+const { GalleryModule, SaveNotification } = NativeModules;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const toast = (message) => {
+  if (Platform.OS === 'android') ToastAndroid.show(message, ToastAndroid.SHORT);
+};
+
+// সেভ নোটিফিকেশনের সহায়ক ফাংশন: নোটিফিকেশনে কোনো সমস্যা হলে অ্যাপ বা সেভ থামবে না
+const notifyApi = {
+  // নোটিফিকেশন সত্যিই দেখানো গেলে true, না গেলে false
+  start: async (id, title, text, percent) => {
+    try {
+      if (!SaveNotification) return false;
+      return !!(await SaveNotification.start(id, title, text, percent));
+    } catch (e) {
+      return false;
+    }
+  },
+  update: (id, text, percent) => {
+    try { SaveNotification && SaveNotification.update(id, text, percent); } catch (e) {}
+  },
+  complete: (id, title, text, uri) => {
+    try { SaveNotification && SaveNotification.complete(id, title, text, uri || null); } catch (e) {}
+  },
+  fail: (id, title, text) => {
+    try { SaveNotification && SaveNotification.fail(id, title, text); } catch (e) {}
+  },
+};
+
+// Android 13+ এ নোটিফিকেশন দেখাতে অনুমতি লাগে; না দিলেও সেভ চলবে (তখন শেষে অ্যালার্টে ফলাফল দেখাবে)
+const requestNotificationPermission = async () => {
+  if (Platform.OS !== 'android' || Platform.Version < 33) return;
+  try {
+    const perm = PermissionsAndroid.PERMISSIONS && PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS;
+    if (!perm) return;
+    const granted = await PermissionsAndroid.check(perm);
+    if (!granted) await PermissionsAndroid.request(perm);
+  } catch (e) {}
+};
 
 // কার্ডের ছবির নির্দিষ্ট মাপ (পিক্সেলে): সব সময় হুবহু ৩৮৪০ × ২৫৬৭ (card.js এর মতোই)
 const EXPORT_WIDTH_PX = 3840;
@@ -34,17 +73,47 @@ export default function CreatingCardScreen({ onBack }) {
   // ক্যাশ মেমোরিতে রাখা কার্ডের ছবির তালিকা, আর যেগুলোর ফাইল মুছে গেছে (সিস্টেম ক্যাশ পরিষ্কার করলে)
   const [cacheMap, setCacheMap] = useState({});
   const [brokenCache, setBrokenCache] = useState({});
+  // স্ক্রিনে ঢোকার পর প্রথমে লোডিং দেখিয়ে যাচাই করা হয় আইডি কার্ড আছে কিনা
+  const [loading, setLoading] = useState(true);
+  // কোন কার্ড এখন সেভের লাইনে ('queued') বা সেভ হচ্ছে ('saving'): { কার্ড আইডি: অবস্থা }
+  const [saveState, setSaveState] = useState({});
+
+  const isMountedRef = useRef(true);
+  const onBackRef = useRef(onBack);
+  onBackRef.current = onBack;
+
+  // সেভ চলার সময় পুরোনো (stale) state এড়াতে সর্বশেষ মানগুলো ref-এ রাখা হয়
+  const cacheMapRef = useRef({});
+  const brokenCacheRef = useRef({});
+  cacheMapRef.current = cacheMap;
+  brokenCacheRef.current = brokenCache;
+
+  // সেভের লাইন (queue): একসাথে অনেক রিকোয়েস্ট এলে একটির পর একটি সেভ হবে এবং একটিই নোটিফিকেশন চলবে
+  const queueRef = useRef([]);
+  const inQueueRef = useRef(new Set());
+  const runningRef = useRef(false);
+  const currentIdRef = useRef(null);
+  const lastNotifIdRef = useRef(0);
+  // কার্ডের ছবি তোলার ধাপ চলছে কিনা (এই ধাপে স্ক্রিন খোলা থাকতে হয়) এবং এর মাঝে ব্যাক চাপা হয়েছে কিনা
+  const captureActiveRef = useRef(false);
+  const pendingBackRef = useRef(false);
 
   // AsyncStorage থেকে সকল কার্ডের ডেটা লোড করা
   useEffect(() => {
+    isMountedRef.current = true;
     loadSavedCards();
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   const loadSavedCards = async () => {
     try {
+      // লোডিং হঠাৎ ঝলকে না যায়, তাই অন্তত ০.৪ সেকেন্ড লোডিং দেখানো হয়
       const [data, cacheRaw] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEY),
         AsyncStorage.getItem(CARD_CACHE_KEY),
+        sleep(400),
       ]);
       if (data) {
         setCardsList(JSON.parse(data));
@@ -60,6 +129,8 @@ export default function CreatingCardScreen({ onBack }) {
     } catch (error) {
       console.error('Error loading cards:', error);
       Alert.alert('ত্রুটি', 'সংরক্ষিত কার্ডের ডেটা লোড করতে সমস্যা হয়েছে।');
+    } finally {
+      if (isMountedRef.current) setLoading(false);
     }
   };
 
@@ -89,51 +160,238 @@ export default function CreatingCardScreen({ onBack }) {
     }
   };
 
-  // নির্দিষ্ট কার্ড গ্যালারিতে সেভ করার ফাংশন
-  // ক্যাশে কার্ডের ছবি থাকলে সেটাই (4K মানের) সেভ হয়; না থাকলে স্ক্রিনের কার্ড ক্যাপচার করে সেভ হয়
-  const saveSingleCardToGallery = async (item) => {
-    try {
-      let uri;
-      const cached = getCachedEntry(item);
+  // সেভ চলাকালীন (সর্বশেষ মান নিয়ে) ক্যাশে ছবি আছে কিনা
+  const getCachedFromRefs = (item) => {
+    const code = item && item.uniqueCode ? String(item.uniqueCode) : '';
+    if (!code || brokenCacheRef.current[code]) return null;
+    const entry = cacheMapRef.current[code];
+    return entry && entry.uri ? entry : null;
+  };
 
-      if (cached) {
-        uri = cached.uri;
-      } else {
-        const ref = cardRefs.current[item.id];
-        if (!ref) {
-          Alert.alert('ত্রুটি', 'কার্ড রেফারেন্স পাওয়া যায়নি!');
-          return;
-        }
-        uri = await captureRef(ref, {
-          format: 'png',
-          quality: 1.0,
-          width: EXPORT_WIDTH_PX,
-          height: EXPORT_HEIGHT_PX,
-        });
-      }
+  // কার্ডের সেভ-অবস্থা (লাইনে আছে / সেভ হচ্ছে) বদলানো; value = null হলে অবস্থা মুছে যায়
+  const patchState = (id, value) => {
+    if (!isMountedRef.current) return;
+    setSaveState((prev) => {
+      const next = { ...prev };
+      if (value) next[id] = value;
+      else delete next[id];
+      return next;
+    });
+  };
 
-      let savedUri = null;
+  // স্ক্রিনের কার্ড ভিউ থেকে ছবি তোলা (এর জন্য স্ক্রিন খোলা থাকতে হয়)
+  const captureItem = async (item) => {
+    const ref = cardRefs.current[item.id];
+    if (!ref) throw new Error('Card view not available');
+    return captureRef(ref, {
+      format: 'png',
+      quality: 1.0,
+      width: EXPORT_WIDTH_PX,
+      height: EXPORT_HEIGHT_PX,
+    });
+  };
+
+  // একটি কার্ড সেভ: ক্যাশে ছবি থাকলে সেটাই (4K মানের), না থাকলে স্ক্রিনের কার্ড ক্যাপচার করে সেভ হয়
+  // onProgress(০-১ এর মধ্যে অংশ, ধাপের লেখা) দিয়ে নোটিফিকেশনের অগ্রগতি জানানো হয়
+  const saveOne = async (item, onProgress) => {
+    const cached = getCachedFromRefs(item);
+    onProgress(0.1, 'কার্ডের ছবি প্রস্তুত হচ্ছে...');
+
+    let uri;
+    if (cached) {
+      uri = cached.uri;
+    } else {
+      captureActiveRef.current = true;
       try {
-        savedUri = await GalleryModule.saveImageToGallery(uri);
-      } catch (saveError) {
-        if (cached) {
-          // ক্যাশের ফাইল মুছে গেছে: সাধারণ কার্ডে ফিরে গিয়ে আবার চেষ্টা করতে বলা
-          markCacheBroken(item);
-          Alert.alert('আবার চেষ্টা করুন', 'ক্যাশে রাখা কার্ডের ছবি আর নেই। সাধারণ কার্ড দেখানো হচ্ছে, আবার সেভ চাপুন।');
-          return;
-        }
-        throw saveError;
+        uri = await captureItem(item);
+      } finally {
+        captureActiveRef.current = false;
       }
+    }
 
-      if (savedUri) {
-        Alert.alert('সফল!', 'স্মার্ট কার্ডটি সফলভাবে আপনার গ্যালারিতে সংরক্ষিত হয়েছে!');
+    onProgress(0.6, 'গ্যালারিতে সংরক্ষণ হচ্ছে...');
+
+    try {
+      return await GalleryModule.saveImageToGallery(uri);
+    } catch (saveError) {
+      if (!cached) throw saveError;
+      // ক্যাশের ফাইল মুছে গেছে: সাধারণ কার্ডে ফিরে নিজে থেকেই আবার চেষ্টা
+      markCacheBroken(item);
+      await sleep(600);
+      captureActiveRef.current = true;
+      try {
+        const retryUri = await captureItem(item);
+        return await GalleryModule.saveImageToGallery(retryUri);
+      } finally {
+        captureActiveRef.current = false;
+      }
+    }
+  };
+
+  // এখনো স্ক্রিন লাগবে কিনা: চলমান ছবি তোলা আছে, অথবা লাইনে এমন কার্ড আছে যার ক্যাশ-ছবি নেই
+  const needsScreen = () =>
+    captureActiveRef.current || queueRef.current.some((it) => !getCachedFromRefs(it));
+
+  // ব্যাক চাপা অপেক্ষায় থাকলে এবং স্ক্রিন আর না লাগলে এখন ফিরে যাওয়া
+  const maybeLeave = () => {
+    if (pendingBackRef.current && !needsScreen()) {
+      pendingBackRef.current = false;
+      if (onBackRef.current) onBackRef.current();
+    }
+  };
+
+  // মোবাইলের ব্যাক বাটন: ছবি তোলা বাকি থাকলে শেষ হওয়া পর্যন্ত অপেক্ষা করে তারপর ফিরবে (সেভ ব্যর্থ হবে না)
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (needsScreen()) {
+        pendingBackRef.current = true;
+        toast('কার্ডের ছবি তৈরি হচ্ছে, শেষ হলেই ফিরে যাবে...');
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, []);
+
+  // সব সেভ শেষে একটিমাত্র ফলাফল: নোটিফিকেশন (না দেখানো গেলে অ্যালার্ট)
+  const finishBatch = (batch) => {
+    const total = batch.ok + batch.failed;
+    if (total === 0) return;
+
+    let title;
+    let text;
+    let uri = null;
+    let isError = false;
+
+    if (batch.failed === 0) {
+      title = 'সেভ সম্পন্ন';
+      if (total === 1) {
+        text = batch.lastName
+          ? `"${batch.lastName}" এর কার্ড গ্যালারিতে সংরক্ষিত হয়েছে।`
+          : 'স্মার্ট কার্ডটি গ্যালারিতে সংরক্ষিত হয়েছে।';
+        uri = batch.lastUri;
       } else {
-        Alert.alert('ত্রুটি', 'কার্ডটি গ্যালারিতে সেভ করা সম্ভব হয়নি।');
+        text = `${toBengaliDigits(total)}টি কার্ড গ্যালারিতে সংরক্ষিত হয়েছে।`;
+      }
+    } else if (batch.ok === 0) {
+      title = 'সেভ ব্যর্থ হয়েছে';
+      text = total === 1
+        ? 'কার্ডটি সেভ করা সম্ভব হয়নি।'
+        : `${toBengaliDigits(total)}টি কার্ডের কোনোটিই সেভ করা যায়নি।`;
+      isError = true;
+    } else {
+      title = 'সেভ আংশিক সম্পন্ন';
+      text = `${toBengaliDigits(batch.ok)}টি সফল, ${toBengaliDigits(batch.failed)}টি ব্যর্থ হয়েছে।`;
+    }
+
+    if (batch.notified) {
+      if (isError) notifyApi.fail(batch.id, title, text);
+      else notifyApi.complete(batch.id, title, text, uri);
+    } else {
+      Alert.alert(isError ? 'ত্রুটি' : title, text);
+    }
+  };
+
+  // লাইনের কার্ডগুলো একটির পর একটি সেভ করে; পুরো সময় একটিই নোটিফিকেশন চলে (n/মোট দেখায়)
+  const runQueue = async () => {
+    runningRef.current = true;
+
+    // প্রতিটি ব্যাচের আলাদা আইডি (Int এর সীমার ভেতরে), যাতে আগের ফলাফল-নোটিফিকেশন মুছে না যায়
+    let notifId = Math.floor(Date.now() % 1000000000);
+    if (notifId <= lastNotifIdRef.current) notifId = lastNotifIdRef.current + 1;
+    lastNotifIdRef.current = notifId;
+
+    const batch = { id: notifId, ok: 0, failed: 0, done: 0, lastUri: null, lastName: '', notified: false };
+
+    try {
+      await requestNotificationPermission();
+
+      batch.notified = await notifyApi.start(batch.id, 'স্মার্ট কার্ড সেভ হচ্ছে', 'শুরু হচ্ছে...', 0);
+      if (batch.notified) toast('সেভ শুরু হয়েছে, নোটিফিকেশনে দেখুন');
+
+      while (queueRef.current.length > 0) {
+        const item = queueRef.current.shift();
+        currentIdRef.current = item.id;
+        patchState(item.id, 'saving');
+
+        // মোট সংখ্যা চলার মাঝেও বাড়তে পারে (নতুন কার্ড লাইনে যোগ হলে), তাই প্রতিবার নতুন করে হিসাব
+        const report = (fraction, stage) => {
+          if (!batch.notified) return;
+          const total = batch.done + 1 + queueRef.current.length;
+          const percent = Math.round(((batch.done + fraction) / total) * 100);
+          const text =
+            total > 1
+              ? `কার্ড ${toBengaliDigits(batch.done + 1)}/${toBengaliDigits(total)}: ${stage}`
+              : stage;
+          notifyApi.update(batch.id, text, percent);
+        };
+
+        try {
+          const savedUri = await saveOne(item, report);
+          if (savedUri) {
+            batch.ok += 1;
+            batch.lastUri = typeof savedUri === 'string' ? savedUri : null;
+            batch.lastName = item.name || '';
+          } else {
+            batch.failed += 1;
+          }
+        } catch (error) {
+          console.error('Save error:', error);
+          batch.failed += 1;
+        }
+
+        batch.done += 1;
+        currentIdRef.current = null;
+        inQueueRef.current.delete(item.id);
+        patchState(item.id, null);
+        maybeLeave();
       }
     } catch (error) {
-      console.error('Save error:', error);
-      Alert.alert('ত্রুটি', 'কার্ডটি সেভ করার সময় একটি সমস্যা হয়েছে।');
+      console.error('Queue error:', error);
+      // অপ্রত্যাশিত ত্রুটিতে লাইনের বাকি কার্ড বাদ দিয়ে অবস্থা পরিষ্কার করা, যাতে বাটন আটকে না থাকে
+      queueRef.current.forEach((it) => {
+        inQueueRef.current.delete(it.id);
+        patchState(it.id, null);
+        batch.failed += 1;
+      });
+      queueRef.current = [];
     }
+
+    // এখান থেকে runningRef = false পর্যন্ত কোনো await নেই, তাই মাঝখানে নতুন রিকোয়েস্ট হারিয়ে যাবে না
+    finishBatch(batch);
+    runningRef.current = false;
+    maybeLeave();
+  };
+
+  // সেভ বাটনে চাপ: কার্ডটি লাইনে যোগ হয় এবং সেভ ব্যাকগ্রাউন্ডে নোটিফিকেশনের মাধ্যমে চলে
+  const saveSingleCardToGallery = (item) => {
+    if (inQueueRef.current.has(item.id)) {
+      toast('এই কার্ডটি ইতোমধ্যে সেভের তালিকায় আছে');
+      return;
+    }
+
+    inQueueRef.current.add(item.id);
+    queueRef.current.push(item);
+    patchState(item.id, 'queued');
+
+    if (runningRef.current) {
+      toast('সেভের তালিকায় যোগ হয়েছে');
+      return;
+    }
+    runQueue();
+  };
+
+  // কার্ড মুছলে সেটি সেভের লাইন থেকেও বাদ দেওয়া
+  const removeFromQueue = (ids) => {
+    const set = new Set(ids);
+    queueRef.current = queueRef.current.filter((it) => !set.has(it.id));
+    ids.forEach((id) => {
+      // এখন যেটি সেভ হচ্ছে তার অবস্থা runQueue নিজেই পরিষ্কার করবে
+      if (currentIdRef.current !== id) {
+        inQueueRef.current.delete(id);
+        patchState(id, null);
+      }
+    });
   };
 
   // ৩ ধাপের সতর্কবার্তা: তিন ধাপ পার হলে তবেই onConfirm চলবে
@@ -161,6 +419,7 @@ export default function CreatingCardScreen({ onBack }) {
   // নির্দিষ্ট একটি কার্ড মুছে ফেলা
   const deleteCard = async (item) => {
     try {
+      removeFromQueue([item.id]);
       const newList = cardsList.filter((card) => card.id !== item.id);
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newList));
 
@@ -176,6 +435,7 @@ export default function CreatingCardScreen({ onBack }) {
   // সবগুলো কার্ড একসাথে মুছে ফেলা
   const deleteAllCards = async () => {
     try {
+      removeFromQueue(cardsList.map((c) => c.id));
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify([]));
 
       cardRefs.current = {};
@@ -214,23 +474,28 @@ export default function CreatingCardScreen({ onBack }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {/* হেডার: কাস্টম back_icon এবং টাইটেল */}
+      {/* হেডার: শুধু টাইটেল (ব্যাক বাটন সরানো হয়েছে); কার্ডের সংখ্যা যাচাই শেষ হলে দেখাবে */}
       <View style={styles.headerRow}>
-        <TouchableOpacity style={styles.topBackBtn} onPress={onBack}>
-          <Image source={{ uri: 'back_icon' }} style={styles.iconStyle} />
-        </TouchableOpacity>
-        <Text style={styles.title}>All Registered Cards ({cardsList.length})</Text>
+        <Text style={styles.title}>
+          {loading ? 'All Registered Cards' : `All Registered Cards (${cardsList.length})`}
+        </Text>
       </View>
 
       {/* সব কার্ড ডিলিট করার অপশন (deleteicon.xml) */}
-      {cardsList.length > 0 && (
+      {!loading && cardsList.length > 0 && (
         <TouchableOpacity style={styles.deleteAllBtn} onPress={confirmDeleteAll}>
           <Image source={{ uri: 'deleteicon' }} style={styles.btnIconStyle} />
           <Text style={styles.saveBtnText}>সব কার্ড ডিলিট করুন</Text>
         </TouchableOpacity>
       )}
 
-      {cardsList.length === 0 ? (
+      {loading ? (
+        /* স্ক্রিনে ঢুকে প্রথমে লোডিং: আইডি কার্ড আছে কিনা যাচাই করা হচ্ছে */
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#1A365D" />
+          <Text style={styles.loadingText}>আইডি কার্ড আছে কিনা যাচাই করা হচ্ছে...</Text>
+        </View>
+      ) : cardsList.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>কোনো কার্ডের ডেটা পাওয়া যায়নি!</Text>
         </View>
@@ -305,11 +570,18 @@ export default function CreatingCardScreen({ onBack }) {
             {/* প্রতিটি কার্ডের জন্য পৃথক সেভ বাটন (add_photo আইকন সহ) ও ডিলিট বাটন (deleteicon) */}
             <View style={styles.actionRow}>
               <TouchableOpacity 
-                style={styles.saveBtn} 
+                style={[styles.saveBtn, saveState[item.id] && { opacity: 0.6 }]} 
                 onPress={() => saveSingleCardToGallery(item)}
+                disabled={!!saveState[item.id]}
               >
                 <Image source={{ uri: 'add_photo' }} style={styles.btnIconStyle} />
-                <Text style={styles.saveBtnText}>এই কার্ডটি গ্যালারিতে সেভ করুন</Text>
+                <Text style={styles.saveBtnText}>
+                  {saveState[item.id] === 'saving'
+                    ? 'সেভ হচ্ছে...'
+                    : saveState[item.id] === 'queued'
+                    ? 'লাইনে আছে...'
+                    : 'এই কার্ডটি গ্যালারিতে সেভ করুন'}
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -330,9 +602,9 @@ export default function CreatingCardScreen({ onBack }) {
 const styles = StyleSheet.create({
   container: { flexGrow: 1, padding: 15, backgroundColor: '#f8f9fa', paddingTop: 30 },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  topBackBtn: { padding: 6, backgroundColor: '#e9ecef', borderRadius: 6, marginRight: 15, justifyContent: 'center', alignItems: 'center' },
-  iconStyle: { width: 22, height: 22, tintColor: '#1A365D' },
-  title: { fontSize: 18, fontWeight: 'bold', color: '#1A365D', flex: 1 },
+  title: { fontSize: 12, fontWeight: 'normal', color: '#1A365D', flex: 1 },
+  loadingContainer: { alignItems: 'center', marginTop: 80 },
+  loadingText: { fontSize: 15, color: '#666', marginTop: 14 },
   emptyContainer: { alignItems: 'center', marginTop: 50 },
   emptyText: { fontSize: 16, color: '#666' },
 
