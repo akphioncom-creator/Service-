@@ -79,6 +79,10 @@ const AREA_NAMES = {
 // সব ইউনিয়ন ও পৌরসভায় ওয়ার্ড ১–৯ (ওয়ার্ড নম্বর ইংরেজি সংখ্যায় সংরক্ষিত হয়)
 const WARD_OPTIONS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
+// উপজেলা ও জেলা: লেখার বদলে ড্রপডাউন থেকে নির্বাচন
+const UPAZILA_OPTIONS = ['ফুলবাড়িয়া'];
+const DISTRICT_OPTIONS = ['ময়মনসিংহ', 'সিলেট'];
+
 // বাংলা সংখ্যা (০-৯) কে ইংরেজি সংখ্যায় রূপান্তর
 const toEnglishDigits = (text) =>
   String(text).replace(/[০-৯]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x09e6 + 48));
@@ -1009,28 +1013,24 @@ export default function AddNewScreen({ onNext, onBack }) {
       )}
 
       <View style={styles.inputGroup} onLayout={onFieldLayout('upazila')}>
-        <Text style={styles.label}>Upazila (উপজেলা):</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="উপজেলার নাম লিখুন..."
-          placeholderTextColor="#999"
+        <DropdownField
+          label="Upazila (উপজেলা):"
           value={upazila}
-          onChangeText={setUpazila}
-          onFocus={() => handleFieldFocus('upazila')}
-          onBlur={handleFieldBlur}
+          placeholder="উপজেলা নির্বাচন করুন"
+          options={UPAZILA_OPTIONS}
+          onSelect={setUpazila}
+          onOpen={() => scrollToField('upazila')}
         />
       </View>
 
       <View style={styles.inputGroup} onLayout={onFieldLayout('district')}>
-        <Text style={styles.label}>District (জেলা):</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="জেলার নাম লিখুন..."
-          placeholderTextColor="#999"
+        <DropdownField
+          label="District (জেলা):"
           value={district}
-          onChangeText={setDistrict}
-          onFocus={() => handleFieldFocus('district')}
-          onBlur={handleFieldBlur}
+          placeholder="জেলা নির্বাচন করুন"
+          options={DISTRICT_OPTIONS}
+          onSelect={setDistrict}
+          onOpen={() => scrollToField('district')}
         />
       </View>
 
