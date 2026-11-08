@@ -279,8 +279,17 @@ export default function PersonListScreen({ onBack }) {
         </TouchableOpacity>
       </View>
 
-      {/* স্ক্যান ফিল্টার: চাপলে চালু, আবার চাপলে বন্ধ (সব দেখাবে) */}
+      {/* স্ক্যান ফিল্টার: All (ডিফল্ট, সব একসাথে), Scanned ও Not Scanned। চালু বাটনে আবার চাপলে All-এ ফিরে যায় */}
       <View style={styles.filterRow}>
+        <TouchableOpacity
+          style={[styles.chip, styles.chipAll, scanFilter === null && styles.chipAllActive]}
+          onPress={() => setScanFilter(null)}
+        >
+          <Text style={[styles.chipText, styles.chipTextAll, scanFilter === null && styles.chipTextActive]}>
+            All
+          </Text>
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={[styles.chip, styles.chipScanned, scanFilter === 'scanned' && styles.chipScannedActive]}
           onPress={() => setScanFilter((prev) => (prev === 'scanned' ? null : 'scanned'))}
@@ -410,6 +419,9 @@ const styles = StyleSheet.create({
   restartBtn: { width: 34, height: 34, marginLeft: 8, borderRadius: 6, borderWidth: 1, borderColor: '#ced4da', backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center' },
   filterRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   chip: { paddingVertical: 5, paddingHorizontal: 14, borderRadius: 16, borderWidth: 1.5, marginRight: 8, backgroundColor: '#fff' },
+  chipAll: { borderColor: '#1A365D' },
+  chipAllActive: { backgroundColor: '#1A365D' },
+  chipTextAll: { color: '#1A365D' },
   chipScanned: { borderColor: '#dc3545' },
   chipNotScanned: { borderColor: '#28a745' },
   chipScannedActive: { backgroundColor: '#dc3545' },
