@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { StyleSheet, Text, View, TextInput, FlatList, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, TextInput, FlatList, TouchableOpacity, Image, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import API from '../apiConfig';
 import {
   fetchCardsFromServer,
@@ -14,6 +14,25 @@ const PAGE_SIZE = 30;
 
 // যেকোনো মানকে নিরাপদে স্ট্রিং-এ রূপান্তর (খালি/undefined হলে ক্র্যাশ এড়াতে)
 const safeText = (value) => (value === undefined || value === null ? '' : String(value));
+
+// পেশার পাঁচটি ভাগ এবং প্রতিটির সামাজিক অবস্থার চারটি ভাগ (কার্ড তৈরির ফর্মের তালিকার সাথে হুবহু মিল রাখতে হবে)
+const OCCUPATION_OPTIONS = ['কৃষক', 'শ্রমিক', 'ব্যবসায়ী', 'গৃহিণী', 'অন্যান্য'];
+const SOCIAL_STATUS_OPTIONS = ['Extremely Poor', 'Poor', 'Middle Class', 'Disabled'];
+
+// তুলনার আগে লেখা মিলিয়ে নেওয়া: দুই পাশের ফাঁকা বাদ, ছোট হাতের অক্ষর, একাধিক ফাঁকা এক ফাঁকা
+const normalizeText = (value) => safeText(value).trim().toLowerCase().replace(/\s+/g, ' ');
+
+// পেশা মিলেছে কিনা। "অন্যান্য" বেছে নিলে মূল চার পেশার বাইরের যেকোনো লেখা (যেমন হাতে লেখা অন্য পেশা) এর মধ্যে ধরা হয়;
+// পেশা একেবারে ফাঁকা থাকলে শুধু All-এ দেখাবে
+const matchesOccupation = (item, selected) => {
+  const value = normalizeText(item.occupation);
+  if (!value) return false;
+  if (selected === 'অন্যান্য') {
+    const mainFour = OCCUPATION_OPTIONS.filter((o) => o !== 'অন্যান্য').map(normalizeText);
+    return !mainFour.includes(value);
+  }
+  return value === normalizeText(selected);
+};
 
 // সার্চ বক্সে শুধু এনআইডি (সংখ্যা) লেখা যাবে: বাংলা সংখ্যা ইংরেজিতে বদলে যায়, সংখ্যা ছাড়া সব অক্ষর বাদ যায়
 // (এনআইডি সর্বোচ্চ ১৭ ডিজিটের হয়)
@@ -33,11 +52,27 @@ const formatDateTime = (iso) => {
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
+// পেশা ও সামাজিক অবস্থা বাছাইয়ের ছোট বাটন
+function FilterChip({ label, active, onPress }) {
+  return (
+    <TouchableOpacity
+      style={[styles.optChip, active && styles.optChipActive]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <Text style={[styles.optChipText, active && styles.optChipTextActive]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
 export default function PersonListScreen({ onBack }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   // স্ক্যান ফিল্টার: null = সব, 'scanned' = শুধু স্ক্যান হয়েছে, 'notScanned' = শুধু স্ক্যান হয়নি
   const [scanFilter, setScanFilter] = useState(null);
+  // পেশা ও সামাজিক অবস্থার ফিল্টার: null = সব। দুটি একসাথে দিলে দুটোই মিলতে হবে (যেমন কৃষক + Poor)
+  const [occupationFilter, setOccupationFilter] = useState(null);
+  const [statusFilter, setStatusFilter] = useState(null);
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -127,10 +162,17 @@ export default function PersonListScreen({ onBack }) {
     } else if (scanFilter === 'notScanned') {
       list = list.filter((it) => !it.scannedAt);
     }
+    if (occupationFilter) {
+      list = list.filter((it) => matchesOccupation(it, occupationFilter));
+    }
+    if (statusFilter) {
+      const wanted = normalizeText(statusFilter);
+      list = list.filter((it) => normalizeText(it.socialStatus) === wanted);
+    }
     return list;
-  }, [items, debouncedQuery, scanFilter]);
+  }, [items, debouncedQuery, scanFilter, occupationFilter, statusFilter]);
 
-  const isFiltering = !!debouncedQuery || !!scanFilter;
+  const isFiltering = !!debouncedQuery || !!scanFilter || !!occupationFilter || !!statusFilter;
 
   // ফিল্টার চালু থাকলে একটি পাতায় মিলে যাওয়া কার্ড কম হতে পারে, তাই তালিকা ছোট থাকলে বাকি পাতাগুলো নিজে থেকেই আনা হয়
   useEffect(() => {
@@ -309,6 +351,38 @@ export default function PersonListScreen({ onBack }) {
         </TouchableOpacity>
       </View>
 
+      {/* পেশা বাছাই: সার্চ নয়, সিলেক্ট করে আলাদা করা হয় (চালু বাটনে আবার চাপলে All) */}
+      <View style={styles.optGroup}>
+        <Text style={styles.optLabel}>পেশা</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <FilterChip label="All" active={occupationFilter === null} onPress={() => setOccupationFilter(null)} />
+          {OCCUPATION_OPTIONS.map((opt) => (
+            <FilterChip
+              key={opt}
+              label={opt}
+              active={occupationFilter === opt}
+              onPress={() => setOccupationFilter((prev) => (prev === opt ? null : opt))}
+            />
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* সামাজিক অবস্থা বাছাই */}
+      <View style={styles.optGroup}>
+        <Text style={styles.optLabel}>অবস্থা</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <FilterChip label="All" active={statusFilter === null} onPress={() => setStatusFilter(null)} />
+          {SOCIAL_STATUS_OPTIONS.map((opt) => (
+            <FilterChip
+              key={opt}
+              label={opt}
+              active={statusFilter === opt}
+              onPress={() => setStatusFilter((prev) => (prev === opt ? null : opt))}
+            />
+          ))}
+        </ScrollView>
+      </View>
+
       <Text style={styles.title}>All Person List ({isFiltering ? visibleItems.length : total})</Text>
 
       {/* সার্ভার থেকে তথ্য আনতে সমস্যা হলে বার্তা ও আবার চেষ্টার বাটন */}
@@ -430,6 +504,12 @@ const styles = StyleSheet.create({
   chipTextScanned: { color: '#dc3545' },
   chipTextNotScanned: { color: '#28a745' },
   chipTextActive: { color: '#fff' },
+  optGroup: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  optLabel: { width: 44, fontSize: 11, color: '#6c757d' },
+  optChip: { paddingVertical: 3, paddingHorizontal: 11, borderRadius: 14, borderWidth: 1, borderColor: '#1A365D', backgroundColor: '#fff', marginRight: 6 },
+  optChipActive: { backgroundColor: '#1A365D' },
+  optChipText: { fontSize: 12, color: '#1A365D' },
+  optChipTextActive: { color: '#fff', fontWeight: 'bold' },
   restartIcon: { fontSize: 20, color: '#1A365D', lineHeight: 24 },
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 12, borderRadius: 8, marginBottom: 8, borderWidth: 1, borderColor: '#e9ecef' },
   cardScanned: { backgroundColor: '#fdecea', borderColor: '#dc3545', borderWidth: 1.5 },
