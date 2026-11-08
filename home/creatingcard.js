@@ -5,11 +5,30 @@ import QRCode from 'react-native-qrcode-svg';
 import { captureRef } from 'react-native-view-shot';
 
 const STORAGE_KEY = 'smart_cards_data';
+// card.js তৈরি হওয়া কার্ডের ছবি ক্যাশ মেমোরিতে রেখে তার ঠিকানা এই কী-তে জমা করে: { ইউনিক কোড: { uri, ratio, at } }
+const CARD_CACHE_KEY = 'card_image_cache';
 const { GalleryModule } = NativeModules;
+
+// ইংরেজি সংখ্যাকে বাংলা সংখ্যায় রূপান্তর
+const toBengaliDigits = (value) =>
+  String(value).replace(/[0-9]/g, (d) => '০১২৩৪৫৬৭৮৯'[d]);
+
+// কার্ড তৈরির তারিখ বাংলা সংখ্যায় দিন/মাস/বছর (যেমন ০৫/১১/২০২৬) আকারে (শুধু ক্যাশের ছবি না থাকলে দেখানো কার্ডে লাগে)
+const formatCreatedDate = (value) => {
+  if (!value) return '';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return toBengaliDigits(value);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return toBengaliDigits(`${dd}/${mm}/${d.getFullYear()}`);
+};
 
 export default function CreatingCardScreen({ onBack }) {
   const [cardsList, setCardsList] = useState([]);
   const cardRefs = useRef({});
+  // ক্যাশ মেমোরিতে রাখা কার্ডের ছবির তালিকা, আর যেগুলোর ফাইল মুছে গেছে (সিস্টেম ক্যাশ পরিষ্কার করলে)
+  const [cacheMap, setCacheMap] = useState({});
+  const [brokenCache, setBrokenCache] = useState({});
 
   // AsyncStorage থেকে সকল কার্ডের ডেটা লোড করা
   useEffect(() => {
@@ -18,9 +37,20 @@ export default function CreatingCardScreen({ onBack }) {
 
   const loadSavedCards = async () => {
     try {
-      const data = await AsyncStorage.getItem(STORAGE_KEY);
+      const [data, cacheRaw] = await Promise.all([
+        AsyncStorage.getItem(STORAGE_KEY),
+        AsyncStorage.getItem(CARD_CACHE_KEY),
+      ]);
       if (data) {
         setCardsList(JSON.parse(data));
+      }
+      if (cacheRaw) {
+        try {
+          const parsed = JSON.parse(cacheRaw);
+          if (parsed && typeof parsed === 'object') setCacheMap(parsed);
+        } catch (e) {
+          // ক্যাশ তালিকা নষ্ট হলে উপেক্ষা, তখন সাধারণ কার্ড দেখাবে
+        }
       }
     } catch (error) {
       console.error('Error loading cards:', error);
@@ -28,21 +58,66 @@ export default function CreatingCardScreen({ onBack }) {
     }
   };
 
-  // নির্দিষ্ট কার্ড গ্যালারিতে সেভ করার ফাংশন
-  const saveSingleCardToGallery = async (cardId) => {
+  // কোনো কার্ডের জন্য ক্যাশে ছবি আছে এবং ফাইলটি এখনো ঠিক আছে কিনা
+  const getCachedEntry = (item) => {
+    const code = item && item.uniqueCode ? String(item.uniqueCode) : '';
+    if (!code || brokenCache[code]) return null;
+    const entry = cacheMap[code];
+    return entry && entry.uri ? entry : null;
+  };
+
+  // ক্যাশের ছবি খোলা না গেলে (ফাইল মুছে গেছে) চিহ্ন রাখা, যাতে সাধারণ কার্ড দেখানো হয়
+  const markCacheBroken = (item) => {
+    const code = item && item.uniqueCode ? String(item.uniqueCode) : '';
+    if (code) setBrokenCache((prev) => ({ ...prev, [code]: true }));
+  };
+
+  // ক্যাশ তালিকা থেকে কার্ড বাদ দিয়ে সংরক্ষণ (কার্ড মুছলে)
+  const removeFromCache = async (codes) => {
     try {
-      const ref = cardRefs.current[cardId];
-      if (!ref) {
-        Alert.alert('ত্রুটি', 'কার্ড রেফারেন্স পাওয়া যায়নি!');
-        return;
+      const next = { ...cacheMap };
+      codes.forEach((c) => delete next[String(c)]);
+      await AsyncStorage.setItem(CARD_CACHE_KEY, JSON.stringify(next));
+      setCacheMap(next);
+    } catch (error) {
+      console.warn('Cache remove error:', error);
+    }
+  };
+
+  // নির্দিষ্ট কার্ড গ্যালারিতে সেভ করার ফাংশন
+  // ক্যাশে কার্ডের ছবি থাকলে সেটাই (4K মানের) সেভ হয়; না থাকলে স্ক্রিনের কার্ড ক্যাপচার করে সেভ হয়
+  const saveSingleCardToGallery = async (item) => {
+    try {
+      let uri;
+      const cached = getCachedEntry(item);
+
+      if (cached) {
+        uri = cached.uri;
+      } else {
+        const ref = cardRefs.current[item.id];
+        if (!ref) {
+          Alert.alert('ত্রুটি', 'কার্ড রেফারেন্স পাওয়া যায়নি!');
+          return;
+        }
+        uri = await captureRef(ref, {
+          format: 'png',
+          quality: 1.0,
+        });
       }
 
-      const uri = await captureRef(ref, {
-        format: 'png',
-        quality: 1.0,
-      });
+      let savedUri = null;
+      try {
+        savedUri = await GalleryModule.saveImageToGallery(uri);
+      } catch (saveError) {
+        if (cached) {
+          // ক্যাশের ফাইল মুছে গেছে: সাধারণ কার্ডে ফিরে গিয়ে আবার চেষ্টা করতে বলা
+          markCacheBroken(item);
+          Alert.alert('আবার চেষ্টা করুন', 'ক্যাশে রাখা কার্ডের ছবি আর নেই। সাধারণ কার্ড দেখানো হচ্ছে, আবার সেভ চাপুন।');
+          return;
+        }
+        throw saveError;
+      }
 
-      const savedUri = await GalleryModule.saveImageToGallery(uri);
       if (savedUri) {
         Alert.alert('সফল!', 'স্মার্ট কার্ডটি সফলভাবে আপনার গ্যালারিতে সংরক্ষিত হয়েছে!');
       } else {
@@ -84,6 +159,7 @@ export default function CreatingCardScreen({ onBack }) {
 
       delete cardRefs.current[item.id];
       setCardsList(newList);
+      if (item.uniqueCode) await removeFromCache([item.uniqueCode]);
     } catch (error) {
       console.error('Delete error:', error);
       Alert.alert('ত্রুটি', 'কার্ডটি মুছে ফেলার সময় একটি সমস্যা হয়েছে।');
@@ -97,6 +173,7 @@ export default function CreatingCardScreen({ onBack }) {
 
       cardRefs.current = {};
       setCardsList([]);
+      await removeFromCache(cardsList.map((c) => c.uniqueCode).filter(Boolean));
     } catch (error) {
       console.error('Delete all error:', error);
       Alert.alert('ত্রুটি', 'সবগুলো কার্ড মুছে ফেলার সময় একটি সমস্যা হয়েছে।');
@@ -153,62 +230,76 @@ export default function CreatingCardScreen({ onBack }) {
       ) : (
         cardsList.map((item) => (
           <View key={item.id} style={styles.cardWrapper}>
-            {/* ক্যাপচার করার জন্য মূল কার্ড প্রিভিউ */}
-            <View 
-              ref={(el) => (cardRefs.current[item.id] = el)} 
-              collapsable={false} 
-              style={styles.cardContainer}
-            >
-              {/* ব্যাকগ্রাউন্ডে অফিশিয়াল লোগো ওয়াটারমার্ক */}
-              <View style={styles.watermarkContainer} pointerEvents="none">
-                <Image 
-                  source={{ uri: 'https://i.ibb.co.com/84p56b3/bd-logo.png' }} 
-                  style={styles.watermarkImage} 
+            {/* ক্যাশ মেমোরিতে কার্ডের ছবি থাকলে আসল কার্ডটিই দেখানো হয় (গ্যালারিতে সেভ না করলেও) */}
+            {getCachedEntry(item) ? (
+              <View style={styles.cachedCardBox}>
+                <Image
+                  source={{ uri: getCachedEntry(item).uri }}
+                  style={[styles.cachedCardImage, { aspectRatio: getCachedEntry(item).ratio || 1.9 }]}
                   resizeMode="contain"
+                  resizeMethod="resize"
+                  fadeDuration={0}
+                  onError={() => markCacheBroken(item)}
                 />
               </View>
-
-              {/* কার্ডের মূল বডি */}
-              <View style={styles.cardBody}>
-                {/* বাম পাশ: ছবি ও ঠিকানা */}
-                <View style={styles.cardLeftSection}>
-                  {item.image ? (
-                    <Image source={{ uri: item.image }} style={styles.cardUserImage} />
-                  ) : (
-                    <View style={[styles.cardUserImage, { backgroundColor: '#ccc' }]} />
-                  )}
-                  <Text style={styles.cardAddressText}>{item.district}</Text>
-                  <Text style={styles.cardAddressText}>{item.upazila}</Text>
-                  <Text style={styles.cardAddressText}>গ্রাম: {item.village}</Text>
+            ) : (
+              /* ক্যাশে ছবি না থাকলে (পুরনো কার্ড বা ক্যাশ পরিষ্কার হয়ে গেলে) সাধারণ কার্ড তথ্য থেকে আঁকা হয় */
+              <View 
+                ref={(el) => (cardRefs.current[item.id] = el)} 
+                collapsable={false} 
+                style={styles.cardContainer}
+              >
+                {/* ব্যাকগ্রাউন্ডে অফিশিয়াল লোগো ওয়াটারমার্ক */}
+                <View style={styles.watermarkContainer} pointerEvents="none">
+                  <Image 
+                    source={{ uri: 'https://i.ibb.co.com/84p56b3/bd-logo.png' }} 
+                    style={styles.watermarkImage} 
+                    resizeMode="contain"
+                  />
                 </View>
 
-                {/* মাঝের অংশ: নাম, এনআইডি, মোবাইল ও তারিখ */}
-                <View style={styles.cardMiddleSection}>
-                  <Text style={styles.fieldLabel}>নাম</Text>
-                  <Text style={styles.fieldValue} numberOfLines={1}>{item.name}</Text>
+                {/* কার্ডের মূল বডি */}
+                <View style={styles.cardBody}>
+                  {/* বাম পাশ: ছবি ও ঠিকানা */}
+                  <View style={styles.cardLeftSection}>
+                    {item.image ? (
+                      <Image source={{ uri: item.image }} style={styles.cardUserImage} />
+                    ) : (
+                      <View style={[styles.cardUserImage, { backgroundColor: '#ccc' }]} />
+                    )}
+                    <Text style={styles.cardAddressText}>{item.district}</Text>
+                    <Text style={styles.cardAddressText}>{item.upazila}</Text>
+                    <Text style={styles.cardAddressText}>গ্রাম: {item.village}</Text>
+                  </View>
 
-                  <Text style={styles.fieldLabel}>জাতীয় পরিচয়পত্র নম্বর</Text>
-                  <Text style={styles.fieldValue}>{item.nid}</Text>
+                  {/* মাঝের অংশ: নাম, এনআইডি, মোবাইল ও তারিখ */}
+                  <View style={styles.cardMiddleSection}>
+                    <Text style={styles.fieldLabel}>নাম</Text>
+                    <Text style={styles.fieldValue} numberOfLines={1}>{item.name}</Text>
 
-                  <Text style={styles.fieldLabel}>মোবাইল নম্বর</Text>
-                  <Text style={styles.fieldValue}>{item.phone}</Text>
+                    <Text style={styles.fieldLabel}>জাতীয় পরিচয়পত্র নম্বর</Text>
+                    <Text style={styles.fieldValue}>{item.nid}</Text>
 
-                  <Text style={styles.fieldLabel}>তারিখ</Text>
-                  <Text style={styles.fieldValue}>{item.createdAt}</Text>
-                </View>
+                    <Text style={styles.fieldLabel}>মোবাইল নম্বর</Text>
+                    <Text style={styles.fieldValue}>{item.phone}</Text>
 
-                {/* ডান পাশ: বড় কিউআর কোড */}
-                <View style={styles.cardRightSection}>
-                  <QRCode value={item.nid || 'smart-card'} size={85} />
+                    <Text style={styles.fieldLabel}>কার্ড তৈরির তারিখ</Text>
+                    <Text style={styles.fieldValue}>{formatCreatedDate(item.createdAt)}</Text>
+                  </View>
+
+                  {/* ডান পাশ: বড় কিউআর কোড (আসল কার্ডের মতোই ইউনিক কোড) */}
+                  <View style={styles.cardRightSection}>
+                    <QRCode value={item.uniqueCode || item.nid || 'smart-card'} size={85} />
+                  </View>
                 </View>
               </View>
-            </View>
+            )}
 
             {/* প্রতিটি কার্ডের জন্য পৃথক সেভ বাটন (add_photo আইকন সহ) ও ডিলিট বাটন (deleteicon) */}
             <View style={styles.actionRow}>
               <TouchableOpacity 
                 style={styles.saveBtn} 
-                onPress={() => saveSingleCardToGallery(item.id)}
+                onPress={() => saveSingleCardToGallery(item)}
               >
                 <Image source={{ uri: 'add_photo' }} style={styles.btnIconStyle} />
                 <Text style={styles.saveBtnText}>এই কার্ডটি গ্যালারিতে সেভ করুন</Text>
@@ -243,10 +334,15 @@ const styles = StyleSheet.create({
 
   cardWrapper: { marginBottom: 25 },
 
+  /* ক্যাশ মেমোরির কার্ডের ছবি */
+  cachedCardBox: { width: '100%', borderRadius: 10, overflow: 'hidden', elevation: 3, backgroundColor: '#fff' },
+  cachedCardImage: { width: '100%' },
+
   /* প্রফেশনাল আইডি কার্ড প্রিভিউ স্টাইল ও ওয়াটারমার্ক */
   cardContainer: { width: '100%', backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: '#1A365D', borderRadius: 10, padding: 12, elevation: 4, position: 'relative', overflow: 'hidden' },
   watermarkContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 0 },
-  watermarkImage: { width: 140, height: 140, opacity: 0.1 },
+  // মাঝের ছবির স্বচ্ছতা: আগে ০.১ ছিল, এখন এক-তৃতীয়াংশ কমিয়ে ০.০৭ (আরও অস্পষ্ট)
+  watermarkImage: { width: 140, height: 140, opacity: 0.07 },
   cardBody: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 1 },
   cardLeftSection: { width: '27%', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#eee', paddingRight: 6 },
   cardUserImage: { width: 60, height: 75, borderRadius: 4, borderWidth: 1, borderColor: '#ccc', marginBottom: 4 },
