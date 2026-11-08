@@ -228,8 +228,6 @@ export default function PersonListScreen({ onBack }) {
 
   return (
     <View style={styles.container}>
-      {/* সার্চ বক্সের উপরে হালকা করে লেখা */}
-      <Text style={styles.searchHint}>শুধুমাত্র এনআইডি নম্বর দিয়ে সার্চ করুন</Text>
       <View style={styles.searchRow}>
         <TextInput
           style={styles.input}
@@ -362,12 +360,11 @@ export default function PersonListScreen({ onBack }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: '#f8f9fa', paddingTop: 15 },
-  title: { fontSize: 20, fontWeight: 'bold', marginBottom: 15, textAlign: 'center', color: '#333' },
-  searchHint: { fontSize: 12, color: '#9aa0a6', marginBottom: 6, marginLeft: 2 },
-  searchRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
-  input: { flex: 1, height: 48, borderWidth: 1, borderColor: '#ced4da', borderRadius: 8, paddingHorizontal: 15, backgroundColor: '#fff', fontSize: 16 },
-  restartBtn: { width: 48, height: 48, marginLeft: 10, borderRadius: 8, borderWidth: 1, borderColor: '#ced4da', backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center' },
-  restartIcon: { fontSize: 28, color: '#1A365D', lineHeight: 32 },
+  title: { fontSize: 9, fontWeight: 'normal', marginBottom: 6, textAlign: 'center', color: '#9aa0a6' },
+  searchRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  input: { flex: 1, height: 34, borderWidth: 1, borderColor: '#ced4da', borderRadius: 6, paddingVertical: 0, paddingHorizontal: 10, backgroundColor: '#fff', fontSize: 13 },
+  restartBtn: { width: 34, height: 34, marginLeft: 8, borderRadius: 6, borderWidth: 1, borderColor: '#ced4da', backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center' },
+  restartIcon: { fontSize: 20, color: '#1A365D', lineHeight: 24 },
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 12, borderRadius: 8, marginBottom: 8, borderWidth: 1, borderColor: '#e9ecef' },
   cardScanned: { backgroundColor: '#fdecea', borderColor: '#dc3545', borderWidth: 1.5 },
   cardNotScanned: { backgroundColor: '#eaf7ee', borderColor: '#28a745', borderWidth: 1.5 },
