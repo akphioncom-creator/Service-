@@ -9,6 +9,11 @@ const STORAGE_KEY = 'smart_cards_data';
 const CARD_CACHE_KEY = 'card_image_cache';
 const { GalleryModule } = NativeModules;
 
+// কার্ডের ছবির নির্দিষ্ট মাপ (পিক্সেলে): সব সময় হুবহু ৩৮৪০ × ২৫৬৭ (card.js এর মতোই)
+const EXPORT_WIDTH_PX = 3840;
+const EXPORT_HEIGHT_PX = 2567;
+const CARD_ASPECT = EXPORT_WIDTH_PX / EXPORT_HEIGHT_PX;
+
 // ইংরেজি সংখ্যাকে বাংলা সংখ্যায় রূপান্তর
 const toBengaliDigits = (value) =>
   String(value).replace(/[0-9]/g, (d) => '০১২৩৪৫৬৭৮৯'[d]);
@@ -102,6 +107,8 @@ export default function CreatingCardScreen({ onBack }) {
         uri = await captureRef(ref, {
           format: 'png',
           quality: 1.0,
+          width: EXPORT_WIDTH_PX,
+          height: EXPORT_HEIGHT_PX,
         });
       }
 
@@ -235,7 +242,7 @@ export default function CreatingCardScreen({ onBack }) {
               <View style={styles.cachedCardBox}>
                 <Image
                   source={{ uri: getCachedEntry(item).uri }}
-                  style={[styles.cachedCardImage, { aspectRatio: getCachedEntry(item).ratio || 1.9 }]}
+                  style={[styles.cachedCardImage, { aspectRatio: getCachedEntry(item).ratio || CARD_ASPECT }]}
                   resizeMode="contain"
                   resizeMethod="resize"
                   fadeDuration={0}
@@ -339,7 +346,7 @@ const styles = StyleSheet.create({
   cachedCardImage: { width: '100%' },
 
   /* প্রফেশনাল আইডি কার্ড প্রিভিউ স্টাইল ও ওয়াটারমার্ক */
-  cardContainer: { width: '100%', backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: '#1A365D', borderRadius: 10, padding: 12, elevation: 4, position: 'relative', overflow: 'hidden' },
+  cardContainer: { width: '100%', aspectRatio: CARD_ASPECT, justifyContent: 'center', backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: '#1A365D', borderRadius: 10, padding: 12, elevation: 4, position: 'relative', overflow: 'hidden' },
   watermarkContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 0 },
   // মাঝের ছবির স্বচ্ছতা: আগে ০.১ ছিল, এখন এক-তৃতীয়াংশ কমিয়ে ০.০৭ (আরও অস্পষ্ট)
   watermarkImage: { width: 140, height: 140, opacity: 0.07 },
